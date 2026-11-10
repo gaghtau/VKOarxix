@@ -19,7 +19,7 @@ const ROUTES = [
   [/^memory$/, M.memory, 'memory'], [/^memory\/collection\/([\w-]+)$/, M.collection, 'memory'], [/^memory\/person\/([\w-]+)$/, M.person, 'memory'],
   [/^memory\/timeline$/, M.timelinePage, 'memory'], [/^memory\/map$/, M.histMap, 'memory'],
   [/^exhibitions$/, M.exhibitions, 'exhibitions'], [/^exhibitions\/([\w-]+)$/, M.exhibition, 'exhibitions'],
-  [/^branches$/, M.branches, 'branches'], [/^assistant$/, P.assistantPage, 'assistant'],
+  [/^branches$/, M.branches, 'branches'], [/^assistant$/, P.assistantPage, 'assistant'], [/^sources$/, P.sources, 'about'],
 ];
 const NAV_ACTIVE = { about: 'about', catalog: 'catalog', guide: 'info', services: 'info', faq: 'info', memory: 'history', exhibitions: 'exhibitions', news: 'news', branches: 'branches' };
 
@@ -143,7 +143,7 @@ function chrome() {
         <li><b style="color:#F3EBDB">${esc(t('footer.hours'))}:</b> ${esc(tr(o.hours))}</li><li><b style="color:#F3EBDB">${esc(t('footer.reading'))}:</b> ${esc(tr(o.readingHours))}</li></ul></div>
     </div>
     <div class="bottom"><span>© 1940–${new Date().getFullYear()} ${esc(tr(o.name))}. ${esc(t('footer.rights'))}</span>
-      <span><a href="${L('privacy')}">${esc(t('footer.privacy'))}</a> · <a href="/admin">${esc(t('footer.admin'))}</a></span></div>
+      <span><a href="${L('privacy')}">${esc(t('footer.privacy'))}</a> · <a href="${L('sources')}">${esc(t('src.title'))}</a> · <a href="/admin">${esc(t('footer.admin'))}</a></span></div>
     <p class="small" style="margin-top:12px;color:#8E8572">${esc(t('footer.proto'))}</p>
   </div></footer>`;
   initAssistant();

@@ -64,7 +64,7 @@ function login(msg) {
 const SECTIONS = [
   ['dash', 'chart', 'Обзор и аналитика', 'stats.view'], ['queue', 'inbox', 'Согласование', null], ['catalog', 'archive', 'Электронный каталог', null],
   ['import', 'upload', 'Импорт / экспорт', 'catalog.import'], ['ai', 'sparkle', 'ИИ-инструменты', 'ai.tools'], ['content', 'news', 'Публикации', null],
-  ['branches', 'pin', 'Филиалы', 'branches.edit'], ['users', 'users', 'Пользователи и роли', 'users.manage'], ['audit', 'history', 'Журнал действий', 'audit.view'], ['feedback', 'message', 'Отзывы', 'feedback.view'],
+  ['comments', 'message', 'Комментарии', 'comments.moderate'], ['branches', 'pin', 'Филиалы', 'branches.edit'], ['users', 'users', 'Пользователи и роли', 'users.manage'], ['audit', 'history', 'Журнал действий', 'audit.view'], ['feedback', 'inbox', 'Отзывы о сайте', 'feedback.view'],
 ];
 function shell() {
   const sec = location.hash.slice(1) || (can('stats.view') ? 'dash' : 'queue');
@@ -78,7 +78,7 @@ function shell() {
   root.querySelector('[data-logout]').onclick = async () => { await api('/api/admin/logout', { method: 'POST' }).catch(() => {}); A.user = null; login('Вы вышли из системы.'); };
   root.querySelector('[data-demoall]').onchange = (e) => { A.demoAll = e.target.checked; shell(); };
   const main = root.querySelector('#main');
-  const page = { dash, queue, catalog, import: importPage, ai, content, branches, users, audit, feedback }[sec] || queue;
+  const page = { dash, queue, catalog, import: importPage, ai, content, comments, branches, users, audit, feedback }[sec] || queue;
   page(main).catch((e) => { main.innerHTML = `<div class="notice warn" role="alert">${icon('alert')}<div><b>Ошибка</b><p>${esc(e.message)}</p></div></div>`; });
 }
 window.addEventListener('hashchange', () => A.user && shell());
@@ -90,7 +90,7 @@ async function dash(main) {
   const d = await api('/api/admin/analytics');
   const T = d.totals; const maxV = Math.max(...d.pages.map((p) => p.views), 1);
   main.innerHTML = `${head('Обзор и аналитика')}
-  <div class="kpi">${[['Записей в каталоге', T.records], ['Опубликовано', T.published], ['Цифровых копий', T.digital], ['Ограниченный доступ', T.restricted], ['Ожидают проверки', T.review], ['Просмотров', T.views], ['Посетителей', T.visitors]].map(([n, v]) => `<div class="card"><b>${(v ?? 0).toLocaleString('ru-RU')}</b><span class="small muted">${n}</span></div>`).join('')}</div>
+  <div class="kpi">${[['Комментарии на модерации', T.comments], ['Записей в каталоге', T.records], ['Опубликовано', T.published], ['Цифровых копий', T.digital], ['Ограниченный доступ', T.restricted], ['Ожидают проверки', T.review], ['Просмотров', T.views], ['Посетителей', T.visitors]].map(([n, v]) => `<div class="card"><b>${(v ?? 0).toLocaleString('ru-RU')}</b><span class="small muted">${n}</span></div>`).join('')}</div>
   <div class="ai-box" style="margin-top:22px"><span class="ai-label">${icon('sparkle')}Рекомендации ИИ по улучшению сайта</span>
     <ul style="margin:10px 0 0;padding-left:18px">${d.recommendations.map((r) => `<li style="margin-bottom:6px"><span class="tag ${r.level === 'high' ? 'tag-danger' : r.level === 'medium' ? 'tag-warn' : ''}">${{ high: 'высокий', medium: 'средний', low: 'низкий' }[r.level]}</span> ${esc(r.text)}</li>`).join('')}</ul>
     <p class="small muted" style="margin:8px 0 0">${esc(d.privacy)} Сформировано автоматически.</p></div>
@@ -316,3 +316,29 @@ async function feedback(main) {
   try { const me = await fetch('/api/admin/me').then((r) => (r.ok ? r.json() : null)); if (me) { A.user = me.user; A.csrf = me.csrf; A.roles = me.roles; shell(); } else login(); }
   catch { login(); }
 })();
+
+// ---------------------------------------------------------------- Модерация комментариев посетителей
+const CST = { pending: 'На модерации', published: 'Опубликован', rejected: 'Отклонён' };
+const TARGET = { record: (id) => `/ru/catalog/${id}`, exhibition: (id) => `/ru/exhibitions/${id}`, news: (id) => `/ru/news/${id}`, collection: (id) => `/ru/memory/collection/${id}`, person: (id) => `/ru/memory/person/${id}` };
+async function comments(main, filter = 'pending') {
+  const rows = await api('/api/admin/comments' + (filter ? '?status=' + filter : ''));
+  main.innerHTML = `${head('Комментарии посетителей')}
+  <div class="notice" style="margin-bottom:14px">${icon('info')}<div><p class="small">Премодерация: комментарий появляется на сайте только после одобрения. Телефоны, e-mail и ИИН в тексте маскируются автоматически при отправке. Ответ архива публикуется под комментарием.</p></div></div>
+  <div class="tabs">${[['pending', 'На модерации'], ['published', 'Опубликованные'], ['rejected', 'Отклонённые'], ['', 'Все']].map(([k, n]) => `<button data-f="${k}" aria-selected="${k === filter}">${n}</button>`).join('')}</div>
+  ${rows.length ? rows.map((c) => `<div class="card" style="margin-bottom:12px" data-c="${c.id}">
+    <div class="row" style="justify-content:space-between"><div><b>${esc(c.name || 'Гость')}</b> <span class="small muted">${fmt(c.at)} · ${esc(c.lang || '')}</span> ${c.demo ? '<span class="tag tag-demo">демо</span>' : ''}</div><span class="status ${c.status === 'published' ? 'st-published' : c.status === 'rejected' ? 'st-rework' : 'st-review'}">${CST[c.status]}</span></div>
+    <div class="small muted" style="margin:4px 0">К материалу: <a href="${TARGET[c.target_type]?.(c.target_id) || '#'}" target="_blank" rel="noopener">${esc(c.target_title || c.target_id)}</a></div>
+    <p style="margin:8px 0">${esc(c.text)}</p>
+    <div class="field"><label class="small">Ответ архива (необязательно)</label><textarea class="input" data-reply style="min-height:60px">${esc(c.reply || '')}</textarea></div>
+    <div class="row" style="margin-top:10px">${c.status !== 'published' ? `<button class="btn btn-sm btn-brand" data-act="published">${icon('check')}Опубликовать</button>` : ''}${c.status !== 'rejected' ? `<button class="btn btn-sm" data-act="rejected">Отклонить</button>` : ''}<button class="btn btn-sm" data-act="reply">Сохранить ответ</button><button class="btn btn-sm btn-danger" data-act="delete">${icon('trash')}Удалить</button>${c.moderated_by ? `<span class="small muted">модератор: ${esc(c.moderated_by)}, ${fmt(c.moderated_at)}</span>` : ''}</div></div>`).join('') : '<p class="muted">Нет комментариев в этой категории.</p>'}`;
+  main.querySelectorAll('[data-f]').forEach((b) => { b.onclick = () => comments(main, b.dataset.f); });
+  main.onclick = async (e) => {
+    const b = e.target.closest('[data-act]'); if (!b) return;
+    const card = b.closest('[data-c]'); const id = card.dataset.c; const reply = card.querySelector('[data-reply]').value;
+    try {
+      if (b.dataset.act === 'delete') { if (!(await confirmDanger('Удалить комментарий?', 'Комментарий будет удалён без возможности восстановления.'))) return; await api('/api/admin/comments/' + id, { method: 'DELETE' }); }
+      else await api('/api/admin/comments/' + id, { method: 'PUT', body: b.dataset.act === 'reply' ? { reply } : { status: b.dataset.act, reply } });
+      toast('Готово'); comments(main, filter);
+    } catch (err) { toast(err.message, true); }
+  };
+}

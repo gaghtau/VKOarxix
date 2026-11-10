@@ -506,3 +506,30 @@ svg.sr-hide, .meta svg.sr-hide { display: none !important; }
   .topbar .wrap { gap: 10px; }
 }
 @media (max-width: 380px) { .logo-text { display: none; } }
+
+/* ---------- Изображения с подписью источника */
+.fig { margin: 0; display: grid; gap: 8px; align-content: start; }
+.fig img { width: 100%; border-radius: var(--radius); background: var(--surface-2); object-fit: cover; }
+.fig figcaption { display: grid; gap: 2px; font-size: .84rem; }
+.fig figcaption .cr { color: var(--muted); font-size: .76rem; }
+.fig figcaption .cr a { color: var(--muted); }
+.fig-zoom { border: 0; padding: 0; background: none; cursor: zoom-in; display: block; width: 100%; }
+.fig.cover img { aspect-ratio: 16 / 9; }
+.fig.square img { aspect-ratio: 1; }
+.fig.portrait img { aspect-ratio: 3 / 4; object-position: top; }
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px; }
+.gallery .fig img { aspect-ratio: 4 / 3; }
+.person-card { display: grid; grid-template-columns: 72px 1fr; gap: 14px; align-items: center; text-decoration: none; color: inherit; }
+.person-card img { width: 72px; height: 88px; object-fit: cover; object-position: top; border-radius: 10px; }
+.news-card .ncover { aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; margin: -6px -6px 6px; background: var(--surface-2); }
+.news-card .ncover img { width: 100%; height: 100%; object-fit: cover; }
+/* ---------- Комментарии */
+.comments { margin-top: 40px; }
+.cm { padding: 14px 0; border-bottom: 1px solid var(--line); }
+.cm p { margin: 6px 0 0; }
+.cm-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.cm-av { width: 32px; height: 32px; border-radius: 50%; background: var(--brand); color: var(--brand-ink); display: grid; place-items: center; font-weight: 700; font-size: .85rem; }
+.cm-reply { margin: 10px 0 0 42px; padding: 10px 14px; border-left: 3px solid var(--accent); background: var(--accent-soft); border-radius: 0 10px 10px 0; font-size: .92rem; }
+.cm-reply p { margin: 2px 0 0; }
+.thumb img { object-position: top; }
+.tile .img img { object-position: center 20%; }

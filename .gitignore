@@ -5,3 +5,11 @@ materials/_pdfimg/
 materials/*.7z
 materials/Комплаенс служба/
 .claude/
+# исходники изображений (обработанные копии лежат в public/img/site и storage/catalog)
+materials/old-site/**/*.jpg
+materials/old-site/**/*.jpeg
+materials/old-site/**/*.png
+materials/old-site/*.jpg
+materials/old-site/*.jpeg
+materials/old-site/*.png
+materials/commons/*.jpg

@@ -1,12 +1,12 @@
 import express from 'express';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readFileSync } from 'node:fs';
+import { readFileSync, createReadStream, existsSync } from 'node:fs';
 import { openDb } from './db.js';
 import * as A from './auth.js';
 import * as AI from './ai.js';
-import { renderScan, restrictedSvg } from './scan.js';
-import { org, departments, calendar } from './seed.js';
+import { restrictedSvg } from './scan.js';
+import { org, departments, calendar, media as M } from './seed.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const reset = process.argv.includes('--reset') || process.argv.includes('--reset-only');
@@ -47,7 +47,7 @@ const limit = (n, ms) => (req, res, next) => {
 };
 
 // ---------------------------------------------------------------- Доступ к данным
-const recRow = (r) => r && ({ ...r, title: P(r.title, {}), descr: P(r.descr, {}), topics: P(r.topics, []) });
+const recRow = (r) => r && ({ ...r, title: P(r.title, {}), descr: P(r.descr, {}), topics: P(r.topics, []), images: P(r.images, []) });
 // Публично доступно только опубликованное описание
 const PUBLIC_WHERE = "wf_status='published' AND desc_status='public'";
 const publicRecords = (level = 'document') => db.prepare(`SELECT * FROM records WHERE ${PUBLIC_WHERE} AND level=?`).all(level).map(recRow);
@@ -65,6 +65,7 @@ function publicCard(r, lang) {
     doc_type: r.doc_type, place: r.place, author: r.author, author_uncertain: !!r.author_uncertain, topics: r.topics, lang: r.lang,
     sheets: r.sheets, storage: r.storage, branch: r.branch, fund_kind: r.fund_kind, demo: !!r.demo, provenance: r.provenance,
     access: { description: r.desc_status, file: r.file_status, digital: allowed, pages: allowed ? r.pages : 0, restriction: r.restriction, masterRegistered: !!r.master_checksum },
+    units: r.units, sourceUrl: r.source_url,
     translated: { kz: !!r.title.kz, en: !!r.title.en },
   };
 }
@@ -76,7 +77,7 @@ app.get('/api/meta', (req, res) => {
   const digital = db.prepare(`SELECT COUNT(*) n FROM records WHERE ${PUBLIC_WHERE} AND file_status='public' AND pages>0`).get().n;
   const poll = db.prepare('SELECT option, votes FROM poll').all();
   res.set('Cache-Control', 'public, max-age=60');
-  res.json({ org, departments, branches: branchesAll(), stats, counts: Object.fromEntries(counts.map((c) => [c.level, c.n])), digital, poll });
+  res.json({ org, departments, media: M, branches: branchesAll(), stats, counts: Object.fromEntries(counts.map((c) => [c.level, c.n])), digital, poll });
 });
 
 app.post('/api/hit', limit(120, 60000), (req, res) => {
@@ -90,7 +91,7 @@ const TYPE_ORDER = ['text', 'photo', 'map', 'org', 'personal', 'newspaper', 'aud
 app.get('/api/catalog/search', (req, res) => {
   const lang = LANGS.includes(req.query.lang) ? req.query.lang : 'ru';
   const q = String(req.query.q || '').slice(0, 200).trim();
-  const level = ['fund', 'inventory', 'case', 'document', 'all'].includes(req.query.level) ? req.query.level : 'document';
+  const level = ['fund', 'inventory', 'case', 'document', 'all'].includes(req.query.level) ? req.query.level : 'all';
   let rows = (level === 'all' ? db.prepare(`SELECT * FROM records WHERE ${PUBLIC_WHERE}`).all().map(recRow) : publicRecords(level));
   let understood = null, suggestions = [], scores = null;
   if (q) {
@@ -139,30 +140,33 @@ app.get('/api/catalog/:id', (req, res) => {
   // для дела — сразу документы; для фонда — количество документов
   const docCount = r.level === 'fund' ? db.prepare(`SELECT COUNT(*) n FROM records WHERE level='document' AND fund_no=? AND ${PUBLIC_WHERE}`).get(r.fund_no).n : null;
   const ann = r.level === 'document' ? AI.annotate(r, publicRecords('document')) : null;
-  const exhibitions = contentRows('exhibition').filter((e) => e.data.exhibits?.some((n) => docByIndex(n)?.id === r.id)).map((e) => ({ slug: e.slug, title: e.data.title }));
-  res.json({ ...publicCard(r), chain, children, docCount, annotation: ann, exhibitions });
+  const exhibitions = contentRows('exhibition').filter((e) => e.data.exhibits?.some((x) => x.rec === r.id)).map((e) => ({ slug: e.slug, title: e.data.title }));
+  const comments = db.prepare("SELECT COUNT(*) n FROM comments WHERE target_type='record' AND target_id=? AND status='published'").get(String(r.id)).n;
+  res.json({ ...publicCard(r), chain, children, docCount, annotation: ann, exhibitions, comments });
 });
 
-// Цифровая копия: право доступа проверяется НА СЕРВЕРЕ, в т. ч. для прямой ссылки
+// Цифровая копия: право доступа проверяется НА СЕРВЕРЕ, в т. ч. для прямой ссылки.
+// Файлы лежат вне публичной папки (storage/catalog) и выдаются только после проверки.
+const STORAGE = join(root, 'storage', 'catalog');
 app.get('/api/files/:id/:page', (req, res) => {
   const r = recRow(db.prepare('SELECT * FROM records WHERE id=?').get(Number(req.params.id)));
   const page = Math.max(1, Number(req.params.page) || 1);
-  res.type('image/svg+xml');
-  if (!fileAllowed(r) || page > r.pages) {
-    res.set('Cache-Control', 'no-store'); res.set('X-Robots-Tag', 'noindex');
+  const key = r?.images?.[page - 1];
+  const path = key && /^[\w-]+$/.test(key) ? join(STORAGE, key + (req.query.s === 't' ? '_t' : '') + '.jpg') : null;
+  if (!fileAllowed(r) || !path || !existsSync(path)) {
+    res.set('Cache-Control', 'no-store'); res.set('X-Robots-Tag', 'noindex'); res.type('image/svg+xml');
     return res.status(r ? 403 : 404).send(restrictedSvg(r?.restriction ? 'Цифровая копия не выдаётся' : 'Файл недоступен'));
   }
-  res.set('Cache-Control', 'public, max-age=86400');
-  res.send(renderScan(r, page));
+  res.set('Cache-Control', 'public, max-age=86400'); res.type('image/jpeg');
+  createReadStream(path).pipe(res);
 });
 
-// Документ по порядковому номеру в демо-наборе (для выставок/хронологии)
-let docIdx = null;
-function docByIndex(n) {
-  if (!docIdx) docIdx = db.prepare("SELECT id FROM records WHERE level='document' AND created_by='seed' ORDER BY id").all().map((x) => x.id);
-  const id = docIdx[n - 1]; return id ? recRow(db.prepare('SELECT * FROM records WHERE id=?').get(id)) : null;
-}
-const docRef = (n) => { const r = docByIndex(n); return r && r.wf_status === 'published' && r.desc_status === 'public' ? publicCard(r) : null; };
+// Карточка записи для ссылок из выставок, хронологии, личностей
+const recRef = (id) => { const r = id && recRow(db.prepare('SELECT * FROM records WHERE id=?').get(id)); return r && r.wf_status === 'published' && r.desc_status === 'public' ? publicCard(r) : null; };
+const mediaRef = (key) => (key && M[key] ? { key, ...M[key] } : null);
+const exItem = (x) => (x.rec ? (recRef(x.rec) ? { kind: 'record', ...recRef(x.rec) } : { unavailable: true }) : x.media ? { kind: 'media', media: mediaRef(x.media), descr: x.descr } : { unavailable: true });
+const coverOf = (x) => (!x ? null : x.media ? { url: M[x.media]?.thumb } : recRef(x.rec)?.access.digital ? { url: `/api/files/${x.rec}/1?s=t` } : null);
+const commentCount = (type, id) => db.prepare("SELECT COUNT(*) n FROM comments WHERE target_type=? AND target_id=? AND status='published'").get(type, String(id)).n;
 
 const CONTENT_TYPES = ['news', 'exhibition', 'collection', 'person', 'event', 'place', 'faq', 'law'];
 app.get('/api/content/:type', (req, res) => {
@@ -174,10 +178,15 @@ app.get('/api/content/:type', (req, res) => {
     if (req.query.cat) items = items.filter((n) => n.cat === req.query.cat);
     if (q) items = items.filter((n) => AI.norm(Object.values(n.title).join(' ') + ' ' + Object.values(n.lead || {}).join(' ') + ' ' + Object.values(n.body || {}).join(' ')).includes(q));
     items.sort((a, b) => (req.query.sort === 'asc' ? (a.date > b.date ? 1 : -1) : (a.date < b.date ? 1 : -1)));
+    items = items.map((n) => ({ ...n, coverMedia: mediaRef(n.cover) }));
   }
-  if (type === 'exhibition') items = items.map((e) => ({ ...e, cover: docRef(e.exhibits[0]), count: e.exhibits.length }));
-  if (type === 'event' || type === 'place') items = items.map((e) => ({ ...e, docRef: e.doc ? docRef(e.doc) : null }));
-  if (type === 'collection') { const docs = publicRecords(); items = items.map((c) => ({ ...c, count: docs.filter((d) => d.topics.some((t) => c.topics.includes(t))).length })); }
+  if (type === 'exhibition') items = items.map((e) => ({ ...e, cover: coverOf(e.exhibits[0]), count: e.exhibits.length, comments: commentCount('exhibition', e.slug) }));
+  if (type === 'event' || type === 'place') items = items.map((e) => ({ ...e, mediaRef: mediaRef(e.media), docRef: e.doc ? recRef(e.doc) : null }));
+  if (type === 'person') items = items.map((p) => ({ ...p, photo: p.docId ? `/api/files/${p.docId}/1?s=t` : null }));
+  if (type === 'collection') {
+    const docs = db.prepare(`SELECT * FROM records WHERE ${PUBLIC_WHERE} AND level IN ('document','inventory')`).all().map(recRow);
+    const used = new Set(); items = items.map((c) => { const m = docs.filter((d) => d.topics.some((t) => c.topics.includes(t))); const cands = m.filter((d) => d.level === 'document' && fileAllowed(d)); const cov = cands.find((d) => !used.has(d.id)) || cands[0]; if (cov) used.add(cov.id); return { ...c, count: m.length, cover: cov ? `/api/files/${cov.id}/1?s=t` : null }; });
+  }
   res.set('Cache-Control', 'public, max-age=30');
   res.json(items);
 });
@@ -186,10 +195,38 @@ app.get('/api/content/:type/:slug', (req, res) => {
   const c = db.prepare("SELECT * FROM content WHERE type=? AND slug=? AND wf_status='published'").get(type, slug);
   if (!c) return res.status(404).json({ error: 'not_found' });
   const d = { slug, ...P(c.data), updated_at: c.updated_at };
-  if (type === 'exhibition') d.items = d.exhibits.map(docRef).map((x, i) => x || { unavailable: true, n: d.exhibits[i] });
-  if (type === 'collection') d.items = publicRecords().filter((r) => r.topics.some((t) => d.topics.includes(t))).map((r) => publicCard(r));
-  if (type === 'news') d.related = contentRows('news').filter((n) => n.slug !== slug && n.data.cat === d.cat).slice(0, 3).map((n) => ({ slug: n.slug, ...n.data }));
+  if (type === 'exhibition') d.items = d.exhibits.map(exItem);
+  if (type === 'collection') d.items = db.prepare(`SELECT * FROM records WHERE ${PUBLIC_WHERE} AND level IN ('document','inventory')`).all().map(recRow).filter((r) => r.topics.some((t) => d.topics.includes(t))).map((r) => publicCard(r));
+  if (type === 'person') { d.photo = d.docId ? `/api/files/${d.docId}/1` : null; d.doc = recRef(d.docId); d.fund = recRef(d.fundId); }
+  if (type === 'news') { d.coverMedia = mediaRef(d.cover); d.related = contentRows('news').filter((n) => n.slug !== slug && n.data.cat === d.cat).slice(0, 3).map((n) => ({ slug: n.slug, ...n.data, coverMedia: mediaRef(n.data.cover) })); }
   res.json(d);
+});
+
+// ---------------------------------------------------------------- Комментарии посетителей (с премодерацией)
+const COMMENT_TARGETS = { record: (id) => recRef(Number(id)) && tr0(recRef(Number(id)).title), exhibition: (id) => cTitle('exhibition', id), news: (id) => cTitle('news', id), collection: (id) => cTitle('collection', id), person: (id) => { const x = db.prepare("SELECT data FROM content WHERE type='person' AND slug=? AND wf_status='published'").get(id); return x && P(x.data).name?.ru; } };
+const tr0 = (o) => o?.ru || Object.values(o || {})[0];
+const cTitle = (type, slug) => { const x = db.prepare("SELECT data FROM content WHERE type=? AND slug=? AND wf_status='published'").get(type, slug); return x && tr0(P(x.data).title); };
+// Маскируем персональные данные, которые посетитель мог случайно оставить
+const maskPII = (t) => t.replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, '[e-mail скрыт]').replace(/(\+?\d[\d\s()-]{8,}\d)/g, '[телефон скрыт]').replace(/\b\d{12}\b/g, '[ИИН скрыт]');
+app.get('/api/comments', (req, res) => {
+  const type = String(req.query.type || ''), id = String(req.query.id || '').slice(0, 80);
+  if (!COMMENT_TARGETS[type]) return res.status(400).json({ error: 'invalid' });
+  res.set('Cache-Control', 'no-store');
+  res.json(db.prepare("SELECT id,at,name,text,reply,demo FROM comments WHERE target_type=? AND target_id=? AND status='published' ORDER BY id").all(type, id));
+});
+app.post('/api/comments', limit(5, 10 * 60000), (req, res) => {
+  const type = String(req.body?.type || ''), id = String(req.body?.id || '').slice(0, 80);
+  if (req.body?.website) return res.json({ ok: true, status: 'pending' }); // honeypot
+  const title = COMMENT_TARGETS[type]?.(id);
+  if (!title) return res.status(404).json({ error: 'not_found', message: 'Материал не найден или не опубликован.' });
+  const name = String(req.body?.name || '').replace(/[<>]/g, '').trim().slice(0, 40) || 'Гость';
+  let text = String(req.body?.text || '').replace(/\s+/g, ' ').trim();
+  if (text.length < 5 || text.length > 1000) return res.status(400).json({ error: 'invalid', message: 'Комментарий: от 5 до 1000 символов.' });
+  if ((text.match(/https?:\/\//g) || []).length > 1) return res.status(400).json({ error: 'invalid', message: 'Слишком много ссылок в комментарии.' });
+  text = maskPII(text);
+  const lang = ['ru', 'kz', 'en'].includes(req.body?.lang) ? req.body.lang : 'ru';
+  db.prepare('INSERT INTO comments (at,target_type,target_id,target_title,name,text,lang,status) VALUES (?,?,?,?,?,?,?,?)').run(now(), type, id, String(title).slice(0, 200), name, text, lang, 'pending');
+  res.json({ ok: true, status: 'pending' });
 });
 
 app.get('/api/calendar', (req, res) => res.json(calendar));
@@ -199,7 +236,7 @@ app.post('/api/assistant', limit(30, 60000), (req, res) => {
   const lang = LANGS.includes(req.body?.lang) ? req.body.lang : 'ru';
   if (!q) return res.status(400).json({ error: 'empty' });
   const restricted = db.prepare(`SELECT * FROM records WHERE ${PUBLIC_WHERE} AND level IN ('document') AND file_status IN ('restricted','review')`).all().map(recRow);
-  const out = AI.assistant({ q, lang, records: publicRecords(), restrictedRecords: restricted, branches: branchesAll(), org });
+  const out = AI.assistant({ q, lang, records: db.prepare(`SELECT * FROM records WHERE ${PUBLIC_WHERE} AND level IN ('document','inventory')`).all().map(recRow), restrictedRecords: restricted, branches: branchesAll(), org });
   db.prepare('INSERT INTO searchlog (at,q,results,source,lang) VALUES (?,?,?,?,?)').run(now(), q.toLowerCase(), out.kind === 'found' ? out.results.length : out.kind === 'info' ? 1 : 0, 'assistant', lang);
   bump('page:assistant');
   res.json(out);
@@ -534,8 +571,26 @@ app.get('/api/admin/audit', auth, need('audit.view'), (req, res) => {
 app.get('/api/admin/analytics', auth, need('stats.view'), (req, res) => {
   const stats = Object.fromEntries(db.prepare('SELECT key,value FROM stats').all().map((s) => [s.key, s.value]));
   const out = AI.analytics({ searchlog: db.prepare('SELECT q,results FROM searchlog').all(), stats, content: db.prepare('SELECT type,wf_status,data FROM content').all().map((c) => ({ ...c, data: P(c.data) })), feedback: db.prepare('SELECT id FROM feedback').all() });
-  const totals = { records: db.prepare('SELECT COUNT(*) n FROM records').get().n, published: db.prepare(`SELECT COUNT(*) n FROM records WHERE ${PUBLIC_WHERE}`).get().n, digital: db.prepare(`SELECT COUNT(*) n FROM records WHERE ${PUBLIC_WHERE} AND file_status='public'`).get().n, restricted: db.prepare("SELECT COUNT(*) n FROM records WHERE file_status IN ('restricted','review')").get().n, review: db.prepare("SELECT COUNT(*) n FROM records WHERE wf_status='review'").get().n + db.prepare("SELECT COUNT(*) n FROM content WHERE wf_status='review'").get().n, views: stats.views, visitors: stats.visitors };
+  const totals = { records: db.prepare('SELECT COUNT(*) n FROM records').get().n, published: db.prepare(`SELECT COUNT(*) n FROM records WHERE ${PUBLIC_WHERE}`).get().n, digital: db.prepare(`SELECT COUNT(*) n FROM records WHERE ${PUBLIC_WHERE} AND file_status='public'`).get().n, restricted: db.prepare("SELECT COUNT(*) n FROM records WHERE file_status IN ('restricted','review')").get().n, review: db.prepare("SELECT COUNT(*) n FROM records WHERE wf_status='review'").get().n + db.prepare("SELECT COUNT(*) n FROM content WHERE wf_status='review'").get().n, views: stats.views, visitors: stats.visitors, comments: db.prepare("SELECT COUNT(*) n FROM comments WHERE status='pending'").get().n };
   res.json({ ...out, totals, poll: db.prepare('SELECT option, votes FROM poll').all() });
+});
+app.get('/api/admin/comments', auth, need('comments.moderate'), (req, res) => {
+  const st = ['pending', 'published', 'rejected'].includes(req.query.status) ? req.query.status : null;
+  res.json(db.prepare(`SELECT * FROM comments ${st ? 'WHERE status=?' : ''} ORDER BY CASE status WHEN 'pending' THEN 0 ELSE 1 END, id DESC LIMIT 300`).all(...(st ? [st] : [])));
+});
+app.put('/api/admin/comments/:id', auth, need('comments.moderate'), (req, res) => {
+  const c = db.prepare('SELECT * FROM comments WHERE id=?').get(Number(req.params.id));
+  if (!c) return res.status(404).json({ error: 'not_found' });
+  const status = ['pending', 'published', 'rejected'].includes(req.body?.status) ? req.body.status : c.status;
+  const reply = 'reply' in (req.body || {}) ? String(req.body.reply || '').trim().slice(0, 1000) || null : c.reply;
+  db.prepare('UPDATE comments SET status=?, reply=?, moderated_by=?, moderated_at=? WHERE id=?').run(status, reply, req.user.login, now(), c.id);
+  audit(req.user.login, 'comment.' + (status !== c.status ? status : 'reply'), `comment:${c.id}`, 'ok', `${c.target_type}:${c.target_id}`);
+  res.json({ ok: true });
+});
+app.delete('/api/admin/comments/:id', auth, need('comments.moderate'), (req, res) => {
+  const r = db.prepare('DELETE FROM comments WHERE id=?').run(Number(req.params.id));
+  audit(req.user.login, 'comment.delete', `comment:${req.params.id}`, r.changes ? 'ok' : 'fail');
+  res.json({ ok: !!r.changes });
 });
 app.get('/api/admin/feedback', auth, need('feedback.view'), (req, res) => res.json(db.prepare('SELECT * FROM feedback ORDER BY id DESC LIMIT 200').all()));
 
@@ -572,7 +627,7 @@ app.use(express.static(join(root, 'public'), { index: false, maxAge: 0, setHeade
 const shell = readFileSync(join(root, 'public', 'index.html'), 'utf8');
 const adminShell = readFileSync(join(root, 'public', 'admin.html'), 'utf8');
 const escH = (s = '') => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-const SECTION = { '': ['Главная', 'Басты бет', 'Home'], about: ['Об архиве', 'Архив туралы', 'About'], catalog: ['Электронный каталог', 'Электрондық каталог', 'E-catalogue'], exhibitions: ['Онлайн-выставки', 'Онлайн-көрмелер', 'Online exhibitions'], memory: ['Большой архив памяти', 'Үлкен жад архиві', 'Memory archive'], news: ['Новости', 'Жаңалықтар', 'News'], branches: ['Филиалы и карта', 'Филиалдар', 'Branches'], services: ['Государственная услуга', 'Мемлекеттік қызмет', 'State service'], faq: ['Вопросы и ответы', 'Сұрақ-жауап', 'FAQ'] };
+const SECTION = { sources: ['Источники изображений', 'Суреттер дереккөздері', 'Image sources'], persons: ['Личности', 'Тұлғалар', 'People'], '': ['Главная', 'Басты бет', 'Home'], about: ['Об архиве', 'Архив туралы', 'About'], catalog: ['Электронный каталог', 'Электрондық каталог', 'E-catalogue'], exhibitions: ['Онлайн-выставки', 'Онлайн-көрмелер', 'Online exhibitions'], memory: ['Большой архив памяти', 'Үлкен жад архиві', 'Memory archive'], news: ['Новости', 'Жаңалықтар', 'News'], branches: ['Филиалы и карта', 'Филиалдар', 'Branches'], services: ['Государственная услуга', 'Мемлекеттік қызмет', 'State service'], faq: ['Вопросы и ответы', 'Сұрақ-жауап', 'FAQ'] };
 
 app.get('/admin*', (req, res) => { res.set('X-Robots-Tag', 'noindex, nofollow'); res.type('html').send(adminShell); });
 app.get(['/', '/:lang', '/:lang/*'], (req, res, next) => {

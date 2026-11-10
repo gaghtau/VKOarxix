@@ -38,6 +38,7 @@ const PERMS = {
   'branches.edit': ['superadmin', 'siteadmin', 'branchadmin'],
   'stats.view': ['superadmin', 'siteadmin', 'analyst', 'moderator'],
   'feedback.view': ['superadmin', 'siteadmin', 'moderator', 'analyst'],
+  'comments.moderate': ['superadmin', 'siteadmin', 'moderator', 'editor'],
   'ai.tools': ['superadmin', 'archivist', 'editor'],
 };
 

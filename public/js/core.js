@@ -39,8 +39,8 @@ export async function share(title, url) {
 }
 
 export const fmtDate = (iso) => { try { return new Date(iso).toLocaleDateString({ ru: 'ru-RU', kz: 'kk-KZ', en: 'en-GB' }[S.lang], { day: 'numeric', month: 'long', year: 'numeric' }); } catch { return iso; } };
-export const years = (r) => (r.date_from ? (r.date_to && r.date_to !== r.date_from ? `${r.date_from}–${r.date_to}` : `${r.date_from}`) + (r.date_uncertain ? '?' : '') : '—');
-export const fileUrl = (id, p = 1) => `/api/files/${id}/${p}?v=3`;
+export const years = (r) => (!r.date_from ? t('doc.undated') : r.date_from ? (r.date_to && r.date_to !== r.date_from ? `${r.date_from}–${r.date_to}` : `${r.date_from}`) + (r.date_uncertain ? '?' : '') : '—');
+export const fileUrl = (id, p = 1, thumb = false) => `/api/files/${id}/${p}${thumb ? '?s=t' : ''}`;
 export const typeIcon = (tp) => ({ photo: 'image', map: 'map', personal: 'feather', audio: 'music', video: 'video', newspaper: 'news', org: 'folder' })[tp] || 'file';
 
 export function accessTag(a) {
@@ -51,7 +51,7 @@ export function accessTag(a) {
   return `<span class="tag">${icon('file')}${esc(t('doc.none'))}</span>`;
 }
 export function docCard(r) {
-  const thumb = r.access?.digital ? `<img src="${fileUrl(r.id)}" alt="" loading="lazy" decoding="async">` : icon(typeIcon(r.doc_type));
+  const thumb = r.access?.digital ? `<img src="${fileUrl(r.id, 1, true)}" alt="" loading="lazy" decoding="async">` : icon(typeIcon(r.doc_type));
   return `<a class="doc-card" href="${L('catalog/' + r.id)}">
     <div class="thumb">${thumb}</div>
     <div><div class="meta" style="margin-bottom:6px"><span class="cipher">${esc(r.cipher || '')}</span>${accessTag(r.access)}</div>
@@ -90,4 +90,56 @@ export function lightbox(items, start = 0) {
   el.ondblclick = (e) => { if (e.target.tagName === 'IMG') { z = z > 1 ? 1 : 2.5; x = y = 0; apply(); } };
   document.addEventListener('keydown', key);
   el.classList.add('open'); draw();
+}
+
+// ---------------------------------------------------------------- Изображения с указанием источника
+export const M = (key) => S.meta?.media?.[key] || null;
+export function credit(m) {
+  if (!m) return '';
+  return `${esc(t('source'))}: <a href="${esc(m.sourceUrl)}" target="_blank" rel="noopener">${esc(m.source)}</a>${m.license ? ` · ${esc(m.license)}` : ''}`;
+}
+export function fig(key, { cls = '', caption = true, thumb = false, lazy = true, zoom = false } = {}) {
+  const m = typeof key === 'string' ? M(key) : key;
+  if (!m) return '';
+  return `<figure class="fig ${cls}">${zoom ? `<button class="fig-zoom" data-zoom-src="${esc(m.url)}" data-zoom-title="${esc(m.title)}" aria-label="${esc(t('doc.zoom'))}">` : ''}<img src="${esc(thumb ? m.thumb : m.url)}" alt="${esc(m.title)}" width="${m.w}" height="${m.h}" ${lazy ? 'loading="lazy"' : ''} decoding="async">${zoom ? '</button>' : ''}${caption ? `<figcaption><span>${esc(m.title)}</span><span class="cr">${credit(m)}</span></figcaption>` : ''}</figure>`;
+}
+document.addEventListener('click', (e) => {
+  const z = e.target.closest('[data-zoom-src]');
+  if (z) { e.preventDefault(); lightbox([{ src: z.dataset.zoomSrc, title: z.dataset.zoomTitle }]); }
+});
+
+// ---------------------------------------------------------------- Комментарии посетителей (премодерация)
+export const commentsHtml = (type, id) => `<section class="comments card" data-comments="${esc(type)}|${esc(id)}" aria-labelledby="cm-h-${esc(id)}">
+  <h2 id="cm-h-${esc(id)}" style="font-size:1.3rem">${esc(t('cm.title'))} <span class="muted small" data-cm-count></span></h2>
+  <div data-cm-list><div class="skeleton" style="height:60px"></div></div>
+  <form class="stack" data-cm-form novalidate style="margin-top:18px">
+    <div class="grid" style="grid-template-columns:minmax(0,220px) 1fr;gap:12px" data-cm-grid>
+      <div class="field"><label for="cm-n-${esc(id)}">${esc(t('cm.name'))}</label><input id="cm-n-${esc(id)}" class="input" name="name" maxlength="40" autocomplete="nickname" placeholder="${esc(t('cm.guest'))}"></div>
+      <div class="field"><label for="cm-t-${esc(id)}">${esc(t('cm.text'))} *</label><textarea id="cm-t-${esc(id)}" class="input" name="text" maxlength="1000" required style="min-height:90px"></textarea></div>
+    </div>
+    <input type="text" name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
+    <div class="row"><button class="btn btn-accent">${esc(t('cm.send'))}</button><span class="small muted" data-cm-status role="status"></span></div>
+    <p class="small muted" style="margin:0">${esc(t('cm.rules'))}</p>
+  </form></section>`;
+export function mountComments(root) {
+  root.querySelectorAll('[data-comments]').forEach((box) => {
+    const [type, id] = box.dataset.comments.split('|');
+    const list = box.querySelector('[data-cm-list]');
+    const load = async () => {
+      try {
+        const items = await api(`/api/comments?type=${type}&id=${encodeURIComponent(id)}`);
+        box.querySelector('[data-cm-count]').textContent = items.length ? `(${items.length})` : '';
+        list.innerHTML = items.length ? items.map((c) => `<article class="cm"><div class="cm-head"><span class="cm-av" aria-hidden="true">${esc((c.name || '?').charAt(0).toUpperCase())}</span><b>${esc(c.name || t('cm.guest'))}</b><span class="small muted">${esc(fmtDate(c.at))}</span>${c.demo ? demoTag() : ''}</div><p>${esc(c.text)}</p>${c.reply ? `<div class="cm-reply"><b>${esc(t('cm.reply'))}</b><p>${esc(c.reply)}</p></div>` : ''}</article>`).join('') : `<p class="muted">${esc(t('cm.empty'))}</p>`;
+      } catch { list.innerHTML = `<p class="muted">${esc(t('cat.error'))}</p>`; }
+    };
+    load();
+    if (matchMedia('(max-width: 640px)').matches) box.querySelector('[data-cm-grid]').style.gridTemplateColumns = '1fr';
+    box.querySelector('[data-cm-form]').addEventListener('submit', async (e) => {
+      e.preventDefault(); const f = e.target; const st = box.querySelector('[data-cm-status]');
+      if (f.text.value.trim().length < 5) { st.textContent = '⚠ ' + t('cm.short'); f.text.focus(); return; }
+      f.querySelector('button').disabled = true;
+      try { await api('/api/comments', { method: 'POST', body: { type, id, name: f.name.value, text: f.text.value, website: f.website.value, lang: S.lang } }); f.reset(); st.textContent = '✓ ' + t('cm.sent'); }
+      catch (err) { st.textContent = '⚠ ' + err.message; } finally { f.querySelector('button').disabled = false; }
+    });
+  });
 }

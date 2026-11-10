@@ -180,7 +180,7 @@ export function assistant({ q, lang = 'ru', records, restrictedRecords, branches
     catalogUrl: `/${lang}/catalog?q=${encodeURIComponent(q)}`, suggestions: suggestions(u, lang),
   };
 }
-const card = (r, lang) => ({ id: r.id, title: r.title[lang] || r.title.ru, cipher: r.cipher, year: r.date_from === r.date_to ? r.date_from : `${r.date_from}–${r.date_to}`, type: r.doc_type, file: r.file_status });
+const card = (r, lang) => ({ id: r.id, title: r.title[lang] || r.title.ru, cipher: r.cipher, year: !r.date_from ? 'не датир.' : r.date_from === r.date_to ? r.date_from : `${r.date_from}–${r.date_to}`, type: r.doc_type, file: r.file_status });
 
 function summarizeU(u, lang) {
   const parts = [];

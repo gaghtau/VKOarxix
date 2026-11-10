@@ -1,4 +1,4 @@
-import { S, t, tr, esc, L, api, store, docCard, pageHead, fileUrl, copy, share, lightbox, accessTag, years, typeIcon, errorBox, demoTag, trBadge, missing } from './core.js';
+import { S, t, tr, esc, L, api, store, docCard, pageHead, fileUrl, copy, share, lightbox, accessTag, years, typeIcon, errorBox, demoTag, trBadge, missing, commentsHtml, mountComments } from './core.js';
 import { icon } from './icons.js';
 
 const PARAMS = ['q', 'level', 'type', 'place', 'branch', 'topic', 'kind', 'from', 'to', 'digital', 'fund', 'inv', 'case', 'author', 'sort', 'page', 'fav'];
@@ -7,12 +7,12 @@ const branchName = (slug) => tr((S.meta?.branches || []).find((b) => b.slug === 
 export function catalog() {
   const p = new URLSearchParams(location.search);
   const st = Object.fromEntries(PARAMS.map((k) => [k, p.get(k) || '']));
-  st.level ||= 'document';
+  st.level ||= 'all';
   const html = `${pageHead(esc(t('cat.title')), esc(t('cat.lead')), [[t('cat.title')]])}
   <div class="wrap section" style="padding-top:26px">
     <form class="searchbar" data-cs role="search"><div class="sb">${icon('search')}<input class="input" name="q" type="search" value="${esc(st.q)}" placeholder="${esc(t('cat.ph'))}" aria-label="${esc(t('cat.ph'))}" autocomplete="off"></div><button class="btn btn-accent">${esc(t('cat.search'))}</button></form>
     <div class="row" style="margin-top:14px;justify-content:space-between">
-      <div class="levels" role="group" aria-label="level">${['document', 'case', 'inventory', 'fund'].map((l) => `<button type="button" data-level="${l}" aria-pressed="${st.level === l}">${esc(t('cat.level.' + l))}</button>`).join('')}</div>
+      <div class="levels" role="group" aria-label="level">${['all', 'document', 'case', 'inventory', 'fund'].map((l) => `<button type="button" data-level="${l}" aria-pressed="${st.level === l}">${esc(t('cat.level.' + l))}</button>`).join('')}</div>
       <div class="row"><button type="button" class="chip" data-fav aria-pressed="${st.fav === '1'}">${icon('star', 'sr-hide')}★ ${esc(t('doc.faved'))} (${store.get('favs', []).length})</button><button type="button" class="chip" data-adv aria-expanded="${!!(st.fund || st.inv || st.case || st.author)}" aria-controls="advanced">${esc(t('cat.advanced'))}</button><button type="button" class="chip show-sm" data-ftoggle aria-controls="filters">${esc(t('cat.filters'))}</button></div>
     </div>
     <form class="adv" id="advanced" data-advform ${st.fund || st.inv || st.case || st.author || location.hash === '#advanced' ? '' : 'hidden'}>
@@ -35,7 +35,7 @@ export function catalog() {
   const after = (root) => {
     let ctl = null;
     const state = { ...st };
-    const toUrl = () => { const q = new URLSearchParams(); for (const k of PARAMS) if (state[k] && !(k === 'level' && state[k] === 'document') && !(k === 'page' && state[k] === '1')) q.set(k, state[k]); return L('catalog') + (q.toString() ? '?' + q : ''); };
+    const toUrl = () => { const q = new URLSearchParams(); for (const k of PARAMS) if (state[k] && !(k === 'level' && state[k] === 'all') && !(k === 'page' && state[k] === '1')) q.set(k, state[k]); return L('catalog') + (q.toString() ? '?' + q : ''); };
     const set = (patch, { push = true } = {}) => { Object.assign(state, patch); if (!('page' in patch)) state.page = ''; history[push ? 'pushState' : 'replaceState'](null, '', toUrl()); load(); };
     const res = root.querySelector('[data-results]'); const fl = root.querySelector('[data-filters]'); const und = root.querySelector('[data-understood]');
 
@@ -117,7 +117,7 @@ export function catalog() {
       if (e.target.closest('[data-digital]')) set({ digital: e.target.checked ? '1' : '' });
       if (e.target.closest('[data-sort]')) set({ sort: e.target.value }, { push: false });
     });
-    const onPop = () => { const p2 = new URLSearchParams(location.search); for (const k of PARAMS) state[k] = p2.get(k) || ''; state.level ||= 'document'; };
+    const onPop = () => { const p2 = new URLSearchParams(location.search); for (const k of PARAMS) state[k] = p2.get(k) || ''; state.level ||= 'all'; };
     window.addEventListener('popstate', onPop);
     load();
     return () => { ctl?.abort(); window.removeEventListener('popstate', onPop); };
@@ -127,7 +127,7 @@ export function catalog() {
 
 function groupCard(r) {
   const ic = { fund: 'landmark', inventory: 'list', case: 'folder' }[r.level];
-  return `<a class="doc-card" href="${L('catalog/' + r.id)}"><div class="thumb">${icon(ic)}</div><div><div class="meta" style="margin-bottom:6px"><span class="cipher">${esc(r.cipher)}</span><span class="tag">${esc(t('cat.level.' + r.level))}</span>${r.fund_kind === 'personal' ? `<span class="tag tag-accent">${esc(t('kinds.personal'))}</span>` : ''}</div><h3>${esc(tr(r.title))}${trBadge(r.title)}</h3><div class="meta"><span>${esc(years(r))}</span><span>·</span><span>${esc(branchName(r.branch))}</span></div></div></a>`;
+  return `<a class="doc-card" href="${L('catalog/' + r.id)}"><div class="thumb">${icon(ic)}</div><div><div class="meta" style="margin-bottom:6px"><span class="cipher">${esc(r.cipher)}</span><span class="tag">${esc(t('cat.level.' + r.level))}</span>${r.fund_kind === 'personal' ? `<span class="tag tag-accent">${esc(t('kinds.personal'))}</span>` : ''}</div><h3>${esc(tr(r.title))}${trBadge(r.title)}</h3><div class="meta"><span>${esc(years(r))}</span>${r.units ? `<span>·</span><span>${esc(r.units)} ${esc(t('doc.units'))}</span>` : ''}<span>·</span><span>${esc(branchName(r.branch))}</span></div>${r.descr?.ru ? `<p class="small muted" style="margin:6px 0 0">${esc(tr(r.descr).slice(0, 160))}${tr(r.descr).length > 160 ? '…' : ''}</p>` : ''}</div></a>`;
 }
 
 // ---------------------------------------------------------------- Карточка архивной записи
@@ -149,6 +149,7 @@ export async function docPage(id) {
     [t('doc.storage'), esc(r.storage || branchName(r.branch))],
     [t('doc.access'), isDoc ? `${a.file === 'restricted' ? st.restricted : st.open}` : st.open],
     ...(isDoc ? [[t('doc.digital'), accessTag(a)]] : []),
+    ...(r.units ? [[{ ru: 'Объём', kz: 'Көлемі', en: 'Extent' }[S.lang], `${esc(r.units)} ${esc(t('doc.units'))}`]] : []),
     [t('doc.uid'), `<span class="mono small">${esc(r.uid)}</span>`],
   ];
   const viewer = !isDoc ? '' : a.digital ? `<div class="viewer" data-viewer><div class="viewer-stage" data-stage><img src="${fileUrl(r.id, 1)}" alt="${esc(tr(r.title))} — ${esc(t('doc.page'))} 1" data-img draggable="false"></div>
@@ -165,6 +166,7 @@ export async function docPage(id) {
         <div class="row"><button class="btn btn-sm" data-copy>${icon('copy')}${esc(t('doc.copy'))}</button><button class="btn btn-sm" data-share>${icon('share')}${esc(t('doc.share'))}</button><button class="btn btn-sm" data-favbtn aria-pressed="${favs.includes(r.id)}">${icon('star')}<span>${esc(favs.includes(r.id) ? t('doc.faved') : t('doc.fav'))}</span></button></div>
         ${r.descr && tr(r.descr) ? `<div><h2 style="font-size:1.15rem">${esc(t('doc.descr'))}</h2><p>${esc(tr(r.descr))}</p></div>` : ''}
         <div class="kv">${kv.map(([k, v]) => `<div>${esc(k)}</div><div>${v}</div>`).join('')}</div>
+        ${r.sourceUrl ? `<p class="small" style="margin:0"><a href="${esc(r.sourceUrl)}" target="_blank" rel="noopener">${esc(t('doc.onSite'))} ↗</a>${isDoc && r.doc_type === 'photo' ? ` <span class="muted">· ${esc(t('doc.photoNote'))}</span>` : ''}</p>` : ''}
         ${isDoc && a.masterRegistered ? `<p class="small muted">${icon('shield', 'sr-hide')}🛡 ${esc(t('doc.master'))}</p>` : ''}
         ${ann ? `<div class="ai-box"><span class="ai-label">${icon('sparkle')}${esc(t('doc.aiTitle'))}</span><p style="margin:8px 0">${esc(ann.summary)}</p>
           ${ann.keyDates.length ? `<div class="small"><b>${esc(t('doc.aiKeys'))}:</b> ${ann.keyDates.map((y) => `<a class="chip" style="padding:1px 8px" href="${L('catalog?from=' + y + '&to=' + y)}">${esc(y)}</a>`).join(' ')}</div>` : ''}
@@ -177,8 +179,9 @@ export async function docPage(id) {
     ${r.children?.length ? `<h2 style="margin-top:36px">${esc(t('doc.children'))} <span class="muted small">(${r.children.length}${r.docCount != null ? ` · ${r.docCount} ${esc(t('cat.level.document').toLowerCase())}` : ''})</span></h2><div class="table-wrap"><table class="table"><thead><tr><th>${esc(t('doc.cipher'))}</th><th>${esc({ ru: 'Заголовок', kz: 'Тақырып', en: 'Title' }[S.lang])}</th><th>${esc(t('doc.date'))}</th></tr></thead><tbody>${r.children.map((c) => `<tr><td><a class="cipher" href="${L('catalog/' + c.id)}">${esc(c.cipher)}</a></td><td><a href="${L('catalog/' + c.id)}">${esc(tr(c.title))}</a></td><td>${esc(years(c))}</td></tr>`).join('')}</tbody></table></div>` : ''}
     ${r.level === 'fund' ? `<p style="margin-top:14px"><a class="btn btn-brand" href="${L('catalog?fund=' + encodeURIComponent(r.fund_no))}">${icon('search')}${esc({ ru: 'Все документы фонда', kz: 'Қордың барлық құжаттары', en: 'All items in this fonds' }[S.lang])}</a></p>` : ''}
     ${r.exhibitions?.length ? `<h2 style="margin-top:36px;font-size:1.3rem">${esc(t('doc.inExhibitions'))}</h2><div class="row">${r.exhibitions.map((e) => `<a class="chip" href="${L('exhibitions/' + e.slug)}">${icon('image', 'sr-hide')}${esc(tr(e.title))}</a>`).join('')}</div>` : ''}
-    ${ann?.related?.length ? `<h2 style="margin-top:36px">${esc(t('doc.related'))} <span class="tag tag-accent">${icon('sparkle')}${esc({ ru: 'рекомендации', kz: 'ұсыныстар', en: 'recommended' }[S.lang])}</span></h2><div class="grid g2">${ann.related.map((x) => `<a class="doc-card" href="${L('catalog/' + x.id)}"><div class="thumb">${icon(typeIcon(x.type))}</div><div><span class="cipher">${esc(x.cipher)}</span><h3 style="margin-top:6px">${esc(tr(x.title))}</h3></div></a>`).join('')}</div>
+    ${ann?.related?.length ? `<h2 style="margin-top:36px">${esc(t('doc.related'))} <span class="tag tag-accent">${icon('sparkle')}${esc({ ru: 'рекомендации', kz: 'ұсыныстар', en: 'recommended' }[S.lang])}</span></h2><div class="grid g2">${ann.related.map((x) => `<a class="doc-card" href="${L('catalog/' + x.id)}"><div class="thumb">${x.type === 'photo' ? `<img src="${fileUrl(x.id, 1, true)}" alt="" loading="lazy">` : icon(typeIcon(x.type))}</div><div><span class="cipher">${esc(x.cipher)}</span><h3 style="margin-top:6px">${esc(tr(x.title))}</h3></div></a>`).join('')}</div>
       <p class="small muted" style="margin-top:8px">${esc({ ru: 'Рекомендации строятся по тематике и месту, без персонализации и истории просмотров.', kz: 'Ұсыныстар тақырып пен орын бойынша, жекелендірусіз құрылады.', en: 'Recommendations are based on subject and place, without personalisation.' }[S.lang])}</p>` : ''}
+    ${commentsHtml('record', String(r.id))}
   </div>`;
 
   return {
@@ -191,6 +194,7 @@ export async function docPage(id) {
         store.set('favs', on ? [...f, r.id] : f.filter((x) => x !== r.id));
         const b = e.currentTarget; b.setAttribute('aria-pressed', on); b.querySelector('span').textContent = on ? t('doc.faved') : t('doc.fav');
       };
+      mountComments(root);
       if (!a.digital) return;
       let pg = 1, z = 1; const img = root.querySelector('[data-img]');
       const upd = () => { img.style.transform = `scale(${z})`; root.querySelector('[data-stage]').style.cursor = z > 1 ? 'zoom-out' : 'zoom-in'; };
