@@ -51,6 +51,7 @@ async function render({ scroll = true } = {}) {
     out = e.status === 403 ? P.unavailable() : e.status === 404 ? P.notFound() : P.failure(e);
   }
   app.innerHTML = out.html;
+  app.classList.remove('page-in'); void app.offsetWidth; app.classList.add('page-in');
   document.title = `${out.title ? out.title + ' | ' : ''}${t('orgShort')}`;
   document.querySelectorAll('.nav > li > a, .nav > li > button').forEach((a) => a.removeAttribute('aria-current'));
   document.querySelector(`.nav [data-nav="${NAV_ACTIVE[section] || ''}"]`)?.setAttribute('aria-current', 'page');
@@ -129,7 +130,15 @@ function chrome() {
   </div></div>`;
 
   const o = S.meta?.org || {};
+  const X = (o) => o[S.lang] ?? o.ru;
   document.getElementById('chrome-bottom').innerHTML = `
+  <section class="cta-band" aria-labelledby="cta-h"><div class="wrap">
+    <div><p class="cta-kicker">${esc(X({ ru: 'Не нашли нужное?', kz: 'Керегін таппадыңыз ба?', en: 'Didn’t find it?' }))}</p>
+      <h2 id="cta-h">${esc(X({ ru: 'Спросите архив — мы поможем найти документ', kz: 'Архивтен сұраңыз — құжатты табуға көмектесеміз', en: 'Ask the archive — we will help you find it' }))}</h2>
+      <p>${esc(X({ ru: 'Помощник ответит сразу, а в читальном зале покажут подлинники.', kz: 'Көмекші бірден жауап береді, оқу залында түпнұсқаларды көрсетеді.', en: 'The assistant answers instantly; the reading room shows the originals.' }))}</p></div>
+    <div class="cta-actions"><button class="btn btn-accent" type="button" data-cta-ask>${icon('sparkle')}${esc(X({ ru: 'Спросить помощника', kz: 'Көмекшіден сұрау', en: 'Ask the assistant' }))}</button>
+      <a class="btn cta-ghost" href="${L('reading-room')}">${esc(X({ ru: 'Как попасть в читальный зал', kz: 'Оқу залына қалай келу', en: 'Visit the reading room' }))} →</a></div>
+  </div></section>
   <footer class="footer"><div class="wrap">
     <div class="cols">
       <div><div class="row" style="gap:12px;margin-bottom:14px"><span class="logo-mark">${logoMark}</span><b style="color:#F3EBDB;font-family:var(--serif);font-size:1.05rem">${esc(tr(o.name))}</b></div>
@@ -144,6 +153,7 @@ function chrome() {
     </div>
     <div class="bottom"><span>© 1940–${new Date().getFullYear()} ${esc(tr(o.name))}. ${esc(t('footer.rights'))}</span>
       <span><a href="${L('privacy')}">${esc(t('footer.privacy'))}</a> · <a href="${L('sources')}">${esc(t('src.title'))}</a> · <a href="/cabinet" target="_blank" rel="noopener">${esc({ ru: 'Кабинет редактора', kz: 'Редактор кабинеті', en: 'Editor workspace' }[S.lang])}</a> · <a href="/admin">${esc(t('footer.admin'))}</a></span></div>
+    <div class="wordmark" aria-hidden="true">${esc(X({ ru: 'Госархив ВКО', kz: 'ШҚО мемархиві', en: 'State Archive EKR' }))}</div>
     <p class="small" style="margin-top:12px;color:#8E8572">${esc(t('footer.proto'))} ${esc(t('home.statsTitle'))}: ${(S.meta?.stats?.views || 0).toLocaleString('ru-RU')} ${esc(t('home.views'))}, ${(S.meta?.stats?.visitors || 0).toLocaleString('ru-RU')} ${esc(t('home.visitors'))}.</p>
   </div></footer>`;
   initAssistant();
@@ -201,6 +211,35 @@ if (!LANGS.includes(location.pathname.split('/')[1])) history.replaceState(null,
 document.documentElement.classList.add('js-anim');
 const revealIO = 'IntersectionObserver' in window ? new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); revealIO.unobserve(e.target); } }), { rootMargin: '0px 0px -8% 0px' }) : null;
 function observeReveal(scope) { scope.querySelectorAll('.reveal:not(.in)').forEach((el) => (revealIO ? revealIO.observe(el) : el.classList.add('in'))); }
+const bar = Object.assign(document.createElement('div'), { className: 'scroll-progress' });
+bar.setAttribute('aria-hidden', 'true');
+const up = Object.assign(document.createElement('button'), { className: 'to-top', type: 'button', innerHTML: icon('chev') });
+up.setAttribute('aria-label', 'Наверх');
+up.onclick = () => window.scrollTo({ top: 0, behavior: document.documentElement.dataset.reading ? 'auto' : 'smooth' });
+document.body.append(bar, up);
+let ticking = false;
+addEventListener('scroll', () => {
+  if (ticking) return; ticking = true;
+  requestAnimationFrame(() => {
+    const y = scrollY, h = document.documentElement.scrollHeight - innerHeight;
+    document.documentElement.classList.toggle('scrolled', y > 40);
+    bar.style.transform = `scaleX(${h > 0 ? Math.min(1, y / h) : 0})`;
+    up.classList.toggle('show', y > 900);
+    ticking = false;
+  });
+}, { passive: true });
+document.addEventListener('click', (e) => { if (e.target.closest('[data-cta-ask]')) S.openAssistant?.(); });
+// Плавающее подчёркивание под пунктом меню
+function navInk() {
+  const nav = document.querySelector('.nav'); if (!nav) return;
+  let ink = nav.querySelector('.nav-ink'); if (!ink) { ink = document.createElement('span'); ink.className = 'nav-ink'; ink.setAttribute('aria-hidden', 'true'); nav.append(ink); }
+  const place = (el) => { if (!el) { ink.style.opacity = 0; return; } const a = el.getBoundingClientRect(), b = nav.getBoundingClientRect(); ink.style.opacity = 1; ink.style.transform = `translateX(${a.left - b.left + 8}px)`; ink.style.width = `${Math.max(0, a.width - 16)}px`; };
+  const current = () => nav.querySelector('[aria-current="page"]');
+  nav.onmouseover = (e) => { const it = e.target.closest('.nav > li > a, .nav > li > button'); if (it) place(it); };
+  nav.onmouseleave = () => place(current());
+  place(current());
+}
+new MutationObserver(() => navInk()).observe(document.getElementById('app'), { childList: true });
 initA11y();
 render();
 export { DICT };

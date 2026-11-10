@@ -1,0 +1,117 @@
+/* =====================================================================
+   Микро-анимации и элементы по мотивам галерей navbar / CTA / footer:
+   сжимающаяся шапка с «плавающим» подчёркиванием, полоса прогресса,
+   переход страниц, отклик кнопок и ссылок, призыв перед подвалом,
+   огромное название в подвале.
+   ===================================================================== */
+:root { --ease: cubic-bezier(.2, .8, .2, 1); }
+
+/* Смена страницы */
+#app.page-in { animation: page-in .38s var(--ease) both; }
+@keyframes page-in { from { opacity: 0; transform: translateY(10px); } }
+
+/* Полоса прогресса чтения */
+.scroll-progress { position: fixed; top: 0; left: 0; right: 0; height: 3px; background: #7C3AED; transform: scaleX(0); transform-origin: 0 50%; z-index: 95; pointer-events: none; }
+
+/* Шапка: сжимается и «отрывается» при прокрутке */
+.header { transition-property: box-shadow, background-color; transition-duration: .25s; }
+.header .wrap { transition: min-height .25s var(--ease); }
+.logo-mark { transition: transform .25s var(--ease), width .25s var(--ease), height .25s var(--ease); }
+html.scrolled .header { box-shadow: 0 6px 24px rgba(23, 36, 27, .1); background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: saturate(1.3) blur(10px); }
+html.scrolled .header .wrap { min-height: 58px; }
+html.scrolled .logo-mark { width: 38px; height: 38px; }
+.logo:hover .logo-mark { transform: rotate(-6deg); }
+
+/* Меню: подчёркивание переезжает к пункту под курсором */
+.nav { position: relative; }
+.nav > li > a[aria-current="page"] { box-shadow: none; }
+.nav-ink { position: absolute; left: 0; bottom: 2px; height: 2px; width: 0; background: var(--ink); border-radius: 2px; opacity: 0; transition: transform .3s var(--ease), width .3s var(--ease), opacity .2s; pointer-events: none; }
+.nav > li > a, .nav > li > button { transition: color .2s, background-color .2s; }
+.nav > li > a:hover, .nav > li > button:hover { background: transparent; color: var(--ink); }
+.nav svg { transition: transform .25s var(--ease); }
+.nav li.open > button svg { transform: rotate(180deg); }
+
+/* Выпадающие меню, панели, ящик меню — появляются, а не «выскакивают» */
+.nav li.open .dropdown { animation: pop .22s var(--ease) both; transform-origin: top left; }
+.dropdown a { transition: background-color .15s, padding-left .2s var(--ease); }
+.dropdown a:hover { padding-left: 18px; }
+.drawer.open .panel { animation: slide-in .3s var(--ease) both; }
+.drawer.open .scrim { animation: fade .25s both; }
+.a11y-panel { animation: pop .25s var(--ease) both; }
+.lightbox.open { animation: fade .2s both; }
+.assist.open { animation: pop .25s var(--ease) both; transform-origin: bottom right; }
+@keyframes pop { from { opacity: 0; transform: translateY(-6px) scale(.98); } }
+@keyframes slide-in { from { transform: translateX(40px); opacity: 0; } }
+@keyframes fade { from { opacity: 0; } }
+
+/* Кнопки: подъём, нажатие, «толчок» стрелки */
+.btn { transition-property: background-color, border-color, color, transform, box-shadow; transition-duration: .18s; transition-timing-function: var(--ease); }
+.btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(23, 36, 27, .12); }
+.btn:active { transform: translateY(0) scale(.97); box-shadow: none; }
+.btn svg:last-child { transition: transform .2s var(--ease); }
+.btn:hover svg:last-child { transform: translateX(2px); }
+.icon-btn { transition: background-color .15s, transform .15s var(--ease); }
+.icon-btn:hover { background: var(--surface-2); transform: translateY(-1px); }
+.icon-btn:active { transform: scale(.94); }
+.chip { transition: background-color .15s, border-color .15s, color .15s, transform .15s; }
+.chip:hover { transform: translateY(-1px); }
+
+/* Ссылки: подчёркивание «вырастает» слева направо */
+.more, .examples a, .crumbs a, .footer a, .ledger-list a b, .sidenav a, .cm-card .to a {
+  text-decoration: none; background-image: linear-gradient(currentColor, currentColor); background-size: 0% 1px; background-position: 0 100%; background-repeat: no-repeat; transition: background-size .3s var(--ease);
+}
+.more:hover, .examples a:hover, .crumbs a:hover, .footer a:hover, .ledger-list a:hover b, .cm-card .to a:hover { background-size: 100% 1px; text-decoration: none !important; }
+.examples a { background-size: 100% 1px; }
+.examples a:hover { background-size: 0% 1px; }
+
+/* Карточки и плитки */
+.tile .img img, .doc-card .thumb img, .news-card .ncover img { transition: transform .5s var(--ease); }
+.tile:hover .img img, .doc-card:hover .thumb img, .news-card:hover .ncover img { transform: scale(1.05); }
+.tile, .doc-card, .news-card, .card-link { transition: transform .25s var(--ease), border-color .2s, box-shadow .25s; }
+.tile:hover, .doc-card:hover, .news-card:hover, .card-link:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(23, 36, 27, .1); }
+.ledger-list li > * { transition: padding-left .25s var(--ease), background-color .2s; }
+.ledger-list li > a:hover { padding-left: 8px; background: color-mix(in srgb, var(--surface-2) 70%, transparent); }
+.fopt { transition: background-color .15s; }
+.cm { animation: fade .3s both; }
+
+/* Кнопка «наверх» */
+.to-top { position: fixed; right: 22px; bottom: 86px; z-index: 69; width: 46px; height: 46px; border-radius: 50%; border: 1px solid var(--line-2); background: var(--surface); color: var(--ink); display: grid; place-items: center; cursor: pointer; opacity: 0; transform: translateY(12px); pointer-events: none; transition: opacity .25s, transform .25s var(--ease); box-shadow: 0 6px 16px rgba(23, 36, 27, .14); }
+.to-top svg { width: 20px; height: 20px; transform: rotate(180deg); }
+.to-top.show { opacity: 1; transform: none; pointer-events: auto; }
+.to-top:hover { transform: translateY(-2px); }
+
+/* Призыв к действию перед подвалом */
+.cta-band { background: var(--bg-2); padding: clamp(36px, 5vw, 64px) 0; border-top: 1px solid var(--line-2); }
+.cta-band .wrap { display: grid; grid-template-columns: minmax(0, 1.4fr) auto; gap: 28px; align-items: center; background: #1F3D2B; color: #EFE6D2; border-radius: 10px; padding: clamp(26px, 4vw, 48px); position: relative; overflow: hidden; isolation: isolate; }
+.cta-band .wrap::after { content: '?'; position: absolute; right: -10px; top: -60px; font-family: var(--serif); font-size: 18rem; line-height: 1; color: rgba(232, 220, 196, .06); z-index: -1; transition: transform .6s var(--ease); }
+.cta-band .wrap:hover::after { transform: rotate(-8deg) translateY(8px); }
+.cta-band h2 { color: #F5EEDF; font-size: clamp(1.6rem, 2vw + 1rem, 2.4rem); margin: 4px 0 8px; max-width: 22ch; }
+.cta-band p { color: #D3C7AE; margin: 0; }
+.cta-kicker { font-family: var(--mono); font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; color: #CDBDFE !important; }
+.cta-actions { display: grid; gap: 10px; }
+.cta-actions .btn { min-height: 52px; justify-content: center; }
+.cta-ghost { background: transparent; color: #EFE6D2; border-color: rgba(232, 220, 196, .4); }
+.cta-ghost:hover { background: rgba(232, 220, 196, .08); color: #fff; }
+
+/* Подвал: огромное название во всю ширину, заливается при наведении */
+.footer .wordmark { font-family: var(--serif); font-weight: 600; font-size: clamp(3rem, 11.5vw, 10.5rem); line-height: .9; letter-spacing: -.03em; margin: 40px 0 0; color: transparent; -webkit-text-stroke: 1px rgba(232, 220, 196, .35); white-space: nowrap; overflow: hidden; background: linear-gradient(90deg, #E8DCC4, #E8DCC4) no-repeat 0 0 / 0% 100%; -webkit-background-clip: text; background-clip: text; transition: background-size .9s var(--ease); user-select: none; }
+.footer:hover .wordmark { background-size: 100% 100%; }
+
+@media (max-width: 760px) {
+  .cta-band .wrap { grid-template-columns: 1fr; }
+  .to-top { right: 16px; bottom: 80px; }
+}
+:root[data-fs="xl"] .cta-band .wrap { grid-template-columns: 1fr; }
+:root[data-fs="xl"] .footer .wordmark { white-space: normal; }
+:root[data-contrast="high"] .cta-band .wrap { background: #000; }
+:root[data-contrast="high"] .footer .wordmark { color: #fff; -webkit-text-stroke: 0; }
+
+/* Без движения — для тех, кому так удобнее */
+@media (prefers-reduced-motion: reduce) {
+  #app.page-in, .nav li.open .dropdown, .drawer.open .panel, .a11y-panel, .assist.open, .cm { animation: none !important; }
+  .btn:hover, .icon-btn:hover, .chip:hover, .tile:hover, .doc-card:hover, .news-card:hover, .card-link:hover, .to-top:hover { transform: none; }
+  .nav-ink, .scroll-progress { transition: none; }
+}
+:root[data-reading="on"] #app.page-in { animation: none; }
+:root[data-reading="on"] .btn:hover, :root[data-reading="on"] .tile:hover, :root[data-reading="on"] .doc-card:hover { transform: none; }
+#chrome-top { display: contents; }
