@@ -209,8 +209,13 @@ async function weather() {
 if (!LANGS.includes(location.pathname.split('/')[1])) history.replaceState(null, '', `/${store.get('lang', 'ru')}/`);
 // Появление блоков при прокрутке (без JS всё видно сразу)
 document.documentElement.classList.add('js-anim');
-const revealIO = 'IntersectionObserver' in window ? new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); revealIO.unobserve(e.target); } }), { rootMargin: '0px 0px -8% 0px' }) : null;
-function observeReveal(scope) { scope.querySelectorAll('.reveal:not(.in)').forEach((el) => (revealIO ? revealIO.observe(el) : el.classList.add('in'))); }
+// Проверка по прокрутке (надёжнее IntersectionObserver во встроенных и фоновых окнах)
+function revealCheck() { const lim = innerHeight * 0.94; document.querySelectorAll('.reveal:not(.in)').forEach((el) => { if (el.getBoundingClientRect().top < lim) el.classList.add('in'); }); }
+function observeReveal() { revealCheck(); setTimeout(revealCheck, 350); }
+addEventListener('scroll', revealCheck, { passive: true });
+addEventListener('resize', revealCheck);
+// Страховка: если что-то пошло не так, через 3 секунды показываем всё, что уже выше экрана
+setInterval(() => document.querySelectorAll('.reveal:not(.in)').forEach((el) => { if (el.getBoundingClientRect().bottom < innerHeight) el.classList.add('in'); }), 3000);
 const bar = Object.assign(document.createElement('div'), { className: 'scroll-progress' });
 bar.setAttribute('aria-hidden', 'true');
 const up = Object.assign(document.createElement('button'), { className: 'to-top', type: 'button', innerHTML: icon('chev') });
@@ -240,6 +245,24 @@ function navInk() {
   place(current());
 }
 new MutationObserver(() => navInk()).observe(document.getElementById('app'), { childList: true });
+// Лёгкий 3D-наклон карточек к курсору (только мышь; отключается при «уменьшении движения» и «удобном чтении»)
+const TILT = '.icard, .pcard, .tile, .news-card, .card-link, .cm-card';
+if (matchMedia('(hover: hover) and (pointer: fine)').matches) {
+  document.addEventListener('pointermove', (e) => {
+    const el = e.target.closest(TILT);
+    if (!el || document.documentElement.dataset.reading || document.documentElement.dataset.contrast || document.documentElement.dataset.motion) return;
+    if (!el.classList.contains('tilt')) { el.classList.add('tilt'); if (getComputedStyle(el).position === 'static') el.style.position = 'relative'; el.insertAdjacentHTML('beforeend', '<span class="tilt-glare" aria-hidden="true"></span>'); }
+    const r = el.getBoundingClientRect(); const px = (e.clientX - r.left) / r.width, py = (e.clientY - r.top) / r.height;
+    const k = (el.classList.contains('pcard') ? 8 : 5) * (matchMedia('(prefers-reduced-motion: reduce)').matches ? 0.5 : 1);
+    el.classList.add('tilting');
+    el.style.transform = 'perspective(900px) rotateX(' + ((0.5 - py) * k).toFixed(2) + 'deg) rotateY(' + ((px - 0.5) * k).toFixed(2) + 'deg) translateY(-6px)';
+    el.style.setProperty('--gx', (px * 100).toFixed(1) + '%'); el.style.setProperty('--gy', (py * 100).toFixed(1) + '%');
+  }, { passive: true });
+  document.addEventListener('pointerout', (e) => {
+    const el = e.target.closest('.tilt'); if (!el || el.contains(e.relatedTarget)) return;
+    el.classList.remove('tilting'); el.style.transform = '';
+  });
+}
 initA11y();
 render();
 export { DICT };

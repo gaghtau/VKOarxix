@@ -1,0 +1,60 @@
+/* =====================================================================
+   Плавные переходы между блоками и объём: многослойные мягкие тени,
+   лёгкий 3D-наклон карточек к курсору, «бумажная» глубина секций.
+   ===================================================================== */
+:root {
+  --sh-1: 0 1px 1px rgba(60, 45, 20, .05), 0 2px 4px rgba(60, 45, 20, .05);
+  --sh-2: 0 1px 1px rgba(60, 45, 20, .04), 0 3px 6px rgba(60, 45, 20, .06), 0 10px 20px rgba(60, 45, 20, .07);
+  --sh-3: 0 2px 2px rgba(60, 45, 20, .04), 0 8px 16px rgba(60, 45, 20, .08), 0 24px 44px rgba(60, 45, 20, .12);
+  --fade: 96px;
+}
+:root[data-theme="dark"] { --sh-1: 0 1px 2px rgba(0, 0, 0, .3); --sh-2: 0 4px 12px rgba(0, 0, 0, .35); --sh-3: 0 18px 40px rgba(0, 0, 0, .5); }
+
+/* Секции перетекают друг в друга вместо резких полос */
+.section-alt { background: linear-gradient(180deg, var(--bg) 0, var(--bg-2) var(--fade), var(--bg-2) calc(100% - var(--fade)), var(--bg) 100%); }
+.cover { border-bottom: 0; background: radial-gradient(1200px 500px at 85% 10%, rgba(232, 220, 196, .9), transparent 70%), var(--bg); }
+:root[data-theme="dark"] .cover { background: var(--bg); }
+.page-head { border-bottom: 0; background: linear-gradient(180deg, var(--bg-2), var(--bg)); position: relative; }
+.page-head::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--line-2), transparent); }
+.cta-band { background: linear-gradient(180deg, var(--bg) 0, var(--bg-2) 100%); border-top: 0; padding-bottom: 0; }
+.cta-band .wrap { box-shadow: var(--sh-3); transform: translateY(40px); z-index: 2; }
+.footer { padding-top: 56px; position: relative; }
+.footer::before { content: ''; position: absolute; left: 0; right: 0; top: -60px; height: 60px; background: linear-gradient(180deg, transparent, rgba(19, 37, 26, .08)); pointer-events: none; }
+.topbar { box-shadow: inset 0 -1px 0 rgba(0, 0, 0, .15); }
+.section-head { border-top-color: transparent; border-image: linear-gradient(90deg, var(--ink), var(--ink) 60%, transparent) 1; }
+.tab-row { border-bottom: 0; background: linear-gradient(90deg, var(--ink), var(--ink) 70%, transparent) bottom / 100% 2px no-repeat; }
+
+/* Объём у поверхностей */
+.card, .doc-card, .tile, .news-card, .filters, .table-wrap, details.faq, .tl-body, .adv, .map-layout, .wizard fieldset, .result-sheet, .cm-card { box-shadow: var(--sh-1); }
+.card-link:hover, .tile:hover, .doc-card:hover, .news-card:hover { box-shadow: var(--sh-3); }
+.icard { box-shadow: var(--sh-2); }
+.icard:hover { box-shadow: var(--sh-3); }
+.pcard { box-shadow: 0 2px 3px rgba(0, 0, 0, .25), 0 10px 20px rgba(0, 0, 0, .3); }
+.pcard:hover, .pcard:focus-visible { box-shadow: 0 4px 6px rgba(0, 0, 0, .25), 0 24px 40px rgba(0, 0, 0, .45); }
+.pdrawer { box-shadow: inset 0 14px 22px rgba(0, 0, 0, .4), inset 0 -2px 0 rgba(255, 255, 255, .05), var(--sh-2); }
+.drawer-front { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .06), inset 0 -6px 0 rgba(0, 0, 0, .2), var(--sh-3); }
+.bigsearch, .input:focus { box-shadow: var(--sh-1); }
+.dropdown, .a11y-panel, .assist, .bcard { box-shadow: var(--sh-3); }
+.btn-accent, .btn-brand { box-shadow: 0 1px 0 rgba(255, 255, 255, .15) inset, var(--sh-1); }
+.btn-accent:hover, .btn-brand:hover { box-shadow: 0 1px 0 rgba(255, 255, 255, .15) inset, var(--sh-2); }
+.viewer { box-shadow: var(--sh-3); }
+.compare { box-shadow: var(--sh-2); }
+.print { box-shadow: 0 1px 2px rgba(0, 0, 0, .12), 0 12px 24px rgba(60, 45, 20, .16), 0 30px 60px rgba(60, 45, 20, .14); }
+
+/* 3D: карточки слегка наклоняются к курсору (значения ставит JS) */
+.tilt { transform-style: preserve-3d; will-change: transform; }
+.icards, .grid.g3, .grid.g4, .pdrawer { perspective: 900px; }
+.tilt.tilting { transition: transform .08s linear, box-shadow .25s; }
+.tilt .tilt-glare { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: radial-gradient(400px circle at var(--gx, 50%) var(--gy, 0%), rgba(255, 255, 255, .35), transparent 45%); opacity: 0; transition: opacity .25s; }
+.tilt.tilting .tilt-glare { opacity: 1; }
+:root[data-theme="dark"] .tilt .tilt-glare { background: radial-gradient(400px circle at var(--gx, 50%) var(--gy, 0%), rgba(255, 255, 255, .08), transparent 45%); }
+
+
+:root[data-reading="on"] .tilt { transform: none !important; }
+:root[data-contrast="high"] * { box-shadow: none !important; }
+@media (max-width: 760px) { .cta-band .wrap { transform: translateY(28px); } }
+
+/* Переключатель «Без анимации» в панели доступности */
+:root[data-motion="off"] *, :root[data-motion="off"] *::before, :root[data-motion="off"] *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+:root[data-motion="off"] .reveal { opacity: 1 !important; transform: none !important; }
+:root[data-motion="off"] .tilt { transform: none !important; }

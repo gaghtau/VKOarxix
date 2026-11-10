@@ -106,12 +106,8 @@ html.scrolled .logo-mark { width: 38px; height: 38px; }
 :root[data-contrast="high"] .cta-band .wrap { background: #000; }
 :root[data-contrast="high"] .footer .wordmark { color: #fff; -webkit-text-stroke: 0; }
 
-/* Без движения — для тех, кому так удобнее */
-@media (prefers-reduced-motion: reduce) {
-  #app.page-in, .nav li.open .dropdown, .drawer.open .panel, .a11y-panel, .assist.open, .cm { animation: none !important; }
-  .btn:hover, .icon-btn:hover, .chip:hover, .tile:hover, .doc-card:hover, .news-card:hover, .card-link:hover, .to-top:hover { transform: none; }
-  .nav-ink, .scroll-progress { transition: none; }
-}
+/* Системная настройка «уменьшить движение»: только мягкое проявление, без сдвигов */
+@media (prefers-reduced-motion: reduce) { #app.page-in { animation-name: fade; } }
 :root[data-reading="on"] #app.page-in { animation: none; }
 :root[data-reading="on"] .btn:hover, :root[data-reading="on"] .tile:hover, :root[data-reading="on"] .doc-card:hover { transform: none; }
 #chrome-top { display: contents; }

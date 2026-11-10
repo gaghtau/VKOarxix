@@ -99,7 +99,8 @@ html.js-anim .pcard.reveal.in:hover { transform: translateY(-14px) rotate(0); }
 @keyframes rise-in { from { opacity: 0; transform: translateY(16px); } }
 @keyframes drop-in { from { opacity: 0; transform: rotate(4deg) translateY(-24px); } }
 @keyframes stamp-in { 0% { opacity: 0; transform: rotate(-14deg) scale(1.8); } 70% { opacity: .9; transform: rotate(-14deg) scale(.95); } 100% { opacity: .82; transform: rotate(-14deg) scale(1); } }
-@media (prefers-reduced-motion: reduce) { html.js-anim .reveal { opacity: 1; transform: none; transition: none; } .cover-text > *, .print, .stamp { animation: none; } }
+@media (prefers-reduced-motion: reduce) { html.js-anim .reveal, html.js-anim .pcard.reveal { transform: none; } .print { animation-name: fade-only; } .stamp { animation: none; } .cover-text > * { animation-name: fade-only; } }
+@keyframes fade-only { from { opacity: 0; } }
 :root[data-reading="on"] .reveal { opacity: 1 !important; transform: none !important; }
 
 /* Мобильные */

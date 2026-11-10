@@ -15,6 +15,8 @@ const TX = {
   sizes: [{ ru: 'Обычный', kz: 'Қалыпты', en: 'Normal' }, { ru: 'Крупный', kz: 'Ірі', en: 'Large' }, { ru: 'Очень крупный', kz: 'Өте ірі', en: 'Extra large' }],
   photos: { ru: 'Фото на отдельной странице', kz: 'Суреттер бөлек бетте', en: 'Photos on a separate page' },
   photosHint: { ru: 'Вместо мелких картинок — кнопка «Открыть фото». Фото открывается во весь экран с кнопкой «Назад».', kz: 'Кішкентай суреттердің орнына «Суретті ашу» батырмасы.', en: 'Small images become an “Open photo” button that opens the photo full-screen.' },
+  motion: { ru: 'Без анимации', kz: 'Анимациясыз', en: 'No animation' },
+  motionHint: { ru: 'Отключить движение и эффекты на сайте — если они мешают или вызывают дискомфорт', kz: 'Сайттағы қозғалысты өшіру', en: 'Turn off motion and effects' },
   dark: { ru: 'Тёмная тема', kz: 'Қараңғы тақырып', en: 'Dark theme' },
   darkHint: { ru: 'Светлый текст на тёмном фоне — удобно вечером', kz: 'Қараңғы фондағы ашық мәтін', en: 'Light text on a dark background' },
   contrast: { ru: 'Высокий контраст', kz: 'Жоғары контраст', en: 'High contrast' },
@@ -48,6 +50,7 @@ function apply() {
   const im = get('imgmode');
   if (im === 'page' || (fs === 'xl' && im !== 'inline')) root.dataset.imgmode = 'page'; else delete root.dataset.imgmode;
   if (get('ttsclick') === 'on') root.dataset.ttsClick = 'on'; else delete root.dataset.ttsClick;
+  if (get('motion') === 'off') root.dataset.motion = 'off'; else delete root.dataset.motion;
 }
 export const photoMode = () => root.dataset.imgmode === 'page';
 
@@ -77,6 +80,7 @@ export function openPanel(btn) {
       <label class="switch"><span><b>${esc(T(TX.photos))}</b><small>${esc(T(TX.photosHint))}</small></span><input type="checkbox" data-k="imgmode" ${photoMode() ? 'checked' : ''}></label>
       <label class="switch"><span><b>${esc(T(TX.dark))}</b><small>${esc(T(TX.darkHint))}</small></span><input type="checkbox" data-k="theme" ${root.dataset.theme === 'dark' ? 'checked' : ''}></label>
       <label class="switch"><span><b>${esc(T(TX.contrast))}</b><small>${esc(T(TX.contrastHint))}</small></span><input type="checkbox" data-k="contrast" ${root.dataset.contrast ? 'checked' : ''}></label>
+      <label class="switch"><span><b>${esc(T(TX.motion))}</b><small>${esc(T(TX.motionHint))}</small></span><input type="checkbox" data-k="motion" ${root.dataset.motion ? 'checked' : ''}></label>
       <label class="switch"><span><b>${esc(T(TX.reading))}</b><small>${esc(T(TX.readingHint))}</small></span><input type="checkbox" data-k="reading" ${root.dataset.reading ? 'checked' : ''}></label>
     </fieldset>
     <fieldset><legend>${esc(T(TX.tts))}</legend>
@@ -93,17 +97,18 @@ export function openPanel(btn) {
     const i = e.target;
     if (i.name === 'fs') { set('fs', i.value === 'md' ? null : i.value); if (i.value === 'xl' && get('imgmode') !== 'inline') panel.querySelector('[data-k="imgmode"]').checked = true; }
     if (i.dataset.k === 'imgmode') set('imgmode', i.checked ? 'page' : 'inline');
-    if (i.dataset.k === 'theme') { set('theme', i.checked ? 'dark' : 'light'); root.dataset.theme = i.checked ? 'dark' : 'light'; }
+    if (i.dataset.k === 'theme') { set('site-theme', i.checked ? 'dark' : 'light'); root.dataset.theme = i.checked ? 'dark' : 'light'; }
     if (i.dataset.k === 'contrast') set('contrast', i.checked ? 'high' : null);
     if (i.dataset.k === 'reading') set('reading', i.checked ? 'on' : null);
     if (i.dataset.k === 'ttsclick') set('ttsclick', i.checked ? 'on' : null);
+    if (i.dataset.k === 'motion') set('motion', i.checked ? 'off' : null);
     apply();
     if (i.name === 'fs' || i.dataset.k === 'imgmode') rerender();
   });
   panel.addEventListener('click', (e) => {
     if (e.target.closest('[data-x]')) closePanel();
     if (e.target.closest('[data-read]')) { closePanel(); readPage(); }
-    if (e.target.closest('[data-reset]')) { ['fs', 'contrast', 'reading', 'imgmode', 'ttsclick'].forEach((k) => set(k, null)); apply(); closePanel(); rerender(); }
+    if (e.target.closest('[data-reset]')) { ['fs', 'contrast', 'reading', 'imgmode', 'ttsclick', 'motion'].forEach((k) => set(k, null)); apply(); closePanel(); rerender(); }
   });
   panel.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closePanel();
