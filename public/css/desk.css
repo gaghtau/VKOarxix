@@ -268,3 +268,10 @@ html[data-motion] .curtain-fade { display: none; }
   :root[data-fs="xl"] .header .wrap { gap: 8px; }
   :root[data-fs="xl"] .header .logo { min-width: 0; }
 }
+/* Фокус после перехода ставится на <main> программно — рамка вокруг всей страницы не нужна */
+#app:focus, #app:focus-visible { outline: none; }
+/* Тёмная тема: монитор не сливается с фоном */
+:root[data-theme="dark"] .crt-body { background: #2A2823; box-shadow: inset 0 0 0 2px #45413A, 0 30px 60px rgba(0, 0, 0, .5); }
+:root[data-theme="dark"] .crt-neck { background: #2A2823; }
+:root[data-theme="dark"] .crt-base { background: #2A2823; box-shadow: inset 0 0 0 2px #45413A, 0 18px 30px rgba(0, 0, 0, .4); }
+:root[data-theme="dark"] .crt-base .vents { background: repeating-linear-gradient(90deg, #4A463E 0 3px, transparent 3px 9px); }

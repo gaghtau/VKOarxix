@@ -33,9 +33,12 @@ function parseLoc() {
 }
 
 let cleanup = null;
+let lastDoc = location.pathname + location.search;
+let renderSeq = 0; // защита от гонки: при двух быстрых переходах показываем только последний
 S.navigate = (...a) => navigate(...a);
 async function render({ scroll = true } = {}) {
   const { lang, rest } = parseLoc();
+  lastDoc = location.pathname + location.search;
   const langChanged = lang !== S.lang || !document.querySelector('.header');
   S.lang = lang; store.set('lang', lang);
   document.documentElement.lang = lang === 'kz' ? 'kk' : lang;
@@ -44,6 +47,7 @@ async function render({ scroll = true } = {}) {
   const route = ROUTES.find(([re]) => re.test(rest));
   const app = document.getElementById('app');
   cleanup?.(); cleanup = null; stopTts(); killFx();
+  const seq = ++renderSeq;
   let section = 'notfound', out;
   try {
     if (route) { section = route[2]; out = await route[1](...rest.match(route[0]).slice(1)); }
@@ -51,6 +55,7 @@ async function render({ scroll = true } = {}) {
   } catch (e) {
     out = e.status === 403 ? P.unavailable() : e.status === 404 ? P.notFound() : P.failure(e);
   }
+  if (seq !== renderSeq) return;
   app.innerHTML = out.html;
   app.classList.remove('page-in'); void app.offsetWidth; app.classList.add('page-in');
   document.title = `${out.title ? out.title + ' | ' : ''}${t('orgShort')}`;
@@ -62,7 +67,7 @@ async function render({ scroll = true } = {}) {
   observeReveal(app);
   initFx(app);
   if (scroll) { if (location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView(); else window.scrollTo(0, 0); }
-  if (!out.keepFocus) app.focus({ preventScroll: true });
+  if (!out.keepFocus && !document.querySelector('.a11y-panel')) app.focus({ preventScroll: true }); // не уводим фокус из открытой панели доступности
   hit(section);
 }
 
@@ -78,7 +83,12 @@ export function navigate(url, { replace = false, scroll = true } = {}) {
   // Шторка между страницами (только для обычного перехода по ссылке)
   curtain(() => { history.pushState(null, '', url); return render({ scroll }); });
 }
-window.addEventListener('popstate', () => render({ scroll: false }));
+// Переход по якорю (#ch2 и т. п.) тоже вызывает popstate — страницу при этом не перерисовываем
+window.addEventListener('popstate', () => {
+  const doc = location.pathname + location.search;
+  if (doc === lastDoc) { if (location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView(); return; }
+  lastDoc = doc; render({ scroll: false });
+});
 document.addEventListener('click', (e) => {
   const a = e.target.closest('a[href]');
   if (!a || e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || a.target === '_blank' || a.hasAttribute('download')) return;

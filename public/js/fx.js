@@ -13,6 +13,7 @@ export function killFx() {
   splits.forEach((s) => s.revert?.()); splits = [];
   guards.forEach(clearInterval); guards = [];
   ctx?.revert(); ctx = null; window.__reelGoto = null;
+  window.ScrollTrigger?.clearScrollMemory?.('manual');
 }
 
 // Шторка между страницами (короткая; не задерживает навигацию дольше 0,5 с)
@@ -120,5 +121,12 @@ export function initFx(root) {
     if (tw.progress() < 1 && (!st || st.start <= scrollY + innerHeight) && document.visibilityState !== 'visible') tw.progress(1);
   }), 1500));
   setTimeout(() => tweens.forEach((tw) => { const st = tw.scrollTrigger; if (tw.progress() === 0 && (!st || st.start < scrollY + innerHeight * 0.9)) tw.progress(1); }), 4000);
-  requestAnimationFrame(() => window.ScrollTrigger.refresh());
+  // Пересчёт после отрисовки. ScrollTrigger помнит прокрутку прошлой страницы и при refresh()
+  // возвращает её — поэтому запоминаем текущую позицию сами и восстанавливаем именно её.
+  requestAnimationFrame(() => {
+    const y = scrollY;
+    ScrollTrigger.clearScrollMemory?.('manual');
+    ScrollTrigger.refresh();
+    if (Math.abs(scrollY - y) > 2) window.scrollTo(0, y);
+  });
 }

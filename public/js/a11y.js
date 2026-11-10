@@ -103,7 +103,8 @@ export function openPanel(btn) {
     if (i.dataset.k === 'ttsclick') set('ttsclick', i.checked ? 'on' : null);
     if (i.dataset.k === 'motion') set('motion', i.checked ? 'off' : null);
     apply();
-    if (i.name === 'fs' || i.dataset.k === 'imgmode') rerender();
+    // Эти настройки меняют раскладку или включают/выключают анимации — перерисовываем страницу
+    if (i.name === 'fs' || ['imgmode', 'motion', 'contrast', 'reading'].includes(i.dataset.k)) rerender();
   });
   panel.addEventListener('click', (e) => {
     if (e.target.closest('[data-x]')) closePanel();
