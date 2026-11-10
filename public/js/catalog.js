@@ -167,7 +167,8 @@ export async function docPage(id) {
         ${r.descr && tr(r.descr) ? `<div><h2 style="font-size:1.15rem">${esc(t('doc.descr'))}</h2><p>${esc(tr(r.descr))}</p></div>` : ''}
         <div class="kv">${kv.map(([k, v]) => `<div>${esc(k)}</div><div>${v}</div>`).join('')}</div>
         ${r.sourceUrl ? `<p class="small" style="margin:0"><a href="${esc(r.sourceUrl)}" target="_blank" rel="noopener">${esc(t('doc.onSite'))} ↗</a>${isDoc && r.doc_type === 'photo' ? ` <span class="muted">· ${esc(t('doc.photoNote'))}</span>` : ''}</p>` : ''}
-        ${isDoc && a.masterRegistered ? `<p class="small muted">${icon('shield', 'sr-hide')}🛡 ${esc(t('doc.master'))}</p>` : ''}
+        <div><h2 style="font-size:1.1rem;margin-bottom:8px">${esc({ ru: 'Как сослаться на документ', kz: 'Құжатқа қалай сілтеме жасау керек', en: 'How to cite' }[S.lang])}</h2><p class="cite" data-cite>${esc(citation(r))}</p><div class="row"><button class="btn btn-sm" data-copycite>${icon('copy')}${esc({ ru: 'Копировать ссылку', kz: 'Сілтемені көшіру', en: 'Copy citation' }[S.lang])}</button><button class="btn btn-sm" data-print>${icon('download')}${esc({ ru: 'Распечатать карточку', kz: 'Карточканы басып шығару', en: 'Print record' }[S.lang])}</button></div></div>
+        ${isDoc && a.masterRegistered ? `<p class="small muted">${esc(t('doc.master'))}</p>` : ''}
         ${ann ? `<div class="ai-box"><span class="ai-label">${icon('sparkle')}${esc(t('doc.aiTitle'))}</span><p style="margin:8px 0">${esc(ann.summary)}</p>
           ${ann.keyDates.length ? `<div class="small"><b>${esc(t('doc.aiKeys'))}:</b> ${ann.keyDates.map((y) => `<a class="chip" style="padding:1px 8px" href="${L('catalog?from=' + y + '&to=' + y)}">${esc(y)}</a>`).join(' ')}</div>` : ''}
           ${ann.places.length ? `<div class="small" style="margin-top:6px"><b>${esc(t('doc.aiPlaces'))}:</b> ${ann.places.map((p) => `<a class="chip" style="padding:1px 8px" href="${L('catalog?place=' + encodeURIComponent(p))}">${esc(p)}</a>`).join(' ')}</div>` : ''}
@@ -188,6 +189,8 @@ export async function docPage(id) {
     title: tr(r.title), html,
     after(root) {
       root.querySelector('[data-copy]').onclick = () => copy(r.cipher, t('doc.copied'));
+      root.querySelector('[data-copycite]').onclick = () => copy(citation(r), { ru: 'Ссылка скопирована', kz: 'Сілтеме көшірілді', en: 'Citation copied' }[S.lang]);
+      root.querySelector('[data-print]').onclick = () => window.print();
       root.querySelector('[data-share]').onclick = () => share(tr(r.title), location.href);
       root.querySelector('[data-favbtn]').onclick = (e) => {
         const f = store.get('favs', []); const on = !f.includes(r.id);
@@ -205,4 +208,11 @@ export async function docPage(id) {
       root.querySelector('[data-stage]').onclick = full;
     },
   };
+}
+
+// Библиографическая ссылка на архивный документ (по образцу ГОСТ Р 7.0.100)
+function citation(r) {
+  const d = new Date().toLocaleDateString('ru-RU');
+  const parts = String(r.cipher || '').replace(/Ф\.(?=\S)/, 'Ф. ').replace(/Оп\.(?=\S)/, 'Оп. ').replace(/Д\.(?=\S)/, 'Д. ').replace(/Л\.(?=\S)/, 'Л. ');
+  return `Государственный архив Восточно-Казахстанской области (ГАВКО). ${parts}. ${tr(r.title)}. — URL: ${location.origin}${location.pathname} (дата обращения: ${d}).`;
 }

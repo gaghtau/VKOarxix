@@ -5,6 +5,8 @@ import { initAssistant } from './assistant.js';
 import * as P from './pages.js';
 import * as C from './catalog.js';
 import * as M from './memory.js';
+import * as F from './features.js';
+import { initA11y, openPanel, applyImageMode, photoPage, stopTts } from './a11y.js';
 
 // ---------------------------------------------------------------- Маршруты (ЧПУ)
 const ROUTES = [
@@ -19,7 +21,7 @@ const ROUTES = [
   [/^memory$/, M.memory, 'memory'], [/^memory\/collection\/([\w-]+)$/, M.collection, 'memory'], [/^memory\/person\/([\w-]+)$/, M.person, 'memory'],
   [/^memory\/timeline$/, M.timelinePage, 'memory'], [/^memory\/map$/, M.histMap, 'memory'],
   [/^exhibitions$/, M.exhibitions, 'exhibitions'], [/^exhibitions\/([\w-]+)$/, M.exhibition, 'exhibitions'],
-  [/^branches$/, M.branches, 'branches'], [/^assistant$/, P.assistantPage, 'assistant'], [/^sources$/, P.sources, 'about'],
+  [/^branches$/, M.branches, 'branches'], [/^assistant$/, P.assistantPage, 'assistant'], [/^sources$/, P.sources, 'about'], [/^photo$/, photoPage, 'photo'], [/^family$/, F.family, 'family'], [/^then-and-now$/, F.thenNow, 'memory'],
 ];
 const NAV_ACTIVE = { about: 'about', catalog: 'catalog', guide: 'info', services: 'info', faq: 'info', memory: 'history', exhibitions: 'exhibitions', news: 'news', branches: 'branches' };
 
@@ -40,7 +42,7 @@ async function render({ scroll = true } = {}) {
   if (langChanged) chrome();
   const route = ROUTES.find(([re]) => re.test(rest));
   const app = document.getElementById('app');
-  cleanup?.(); cleanup = null;
+  cleanup?.(); cleanup = null; stopTts();
   let section = 'notfound', out;
   try {
     if (route) { section = route[2]; out = await route[1](...rest.match(route[0]).slice(1)); }
@@ -54,6 +56,7 @@ async function render({ scroll = true } = {}) {
   document.querySelector(`.nav [data-nav="${NAV_ACTIVE[section] || ''}"]`)?.setAttribute('aria-current', 'page');
   document.querySelectorAll('.lang a').forEach((a) => { a.href = `/${a.dataset.l}/${rest}${location.search}${location.hash}`; });
   cleanup = out.after?.(app) || null;
+  applyImageMode(app);
   if (scroll) { if (location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView(); else window.scrollTo(0, 0); }
   if (!out.keepFocus) app.focus({ preventScroll: true });
   hit(section);
@@ -86,8 +89,8 @@ document.addEventListener('click', (e) => {
 // ---------------------------------------------------------------- Шапка, меню, подвал
 const MENUS = {
   about: [['aboutHistory', 'about'], ['structure', 'about/structure'], ['contacts', 'contacts'], ['symbols', 'symbols'], ['links', 'links'], ['feedback', 'feedback']],
-  info: [['guide', 'guide'], ['services', 'services'], ['paid', 'services/paid'], ['reading', 'reading-room'], ['laws', 'laws'], ['anticorruption', 'anticorruption'], ['faq', 'faq']],
-  history: [['memory', 'memory'], ['timeline', 'memory/timeline'], ['histmap', 'memory/map'], ['calendar', 'calendar'], ['publications', 'publications']],
+  info: [['family', 'family'], ['guide', 'guide'], ['services', 'services'], ['paid', 'services/paid'], ['reading', 'reading-room'], ['laws', 'laws'], ['anticorruption', 'anticorruption'], ['faq', 'faq']],
+  history: [['memory', 'memory'], ['thennow', 'then-and-now'], ['timeline', 'memory/timeline'], ['histmap', 'memory/map'], ['calendar', 'calendar'], ['publications', 'publications']],
 };
 const dd = (key) => `<div class="dropdown" role="menu">${MENUS[key].map(([k, href]) => `<a role="menuitem" href="${L(href)}">${esc(t('menu.' + k)[0])}<small>${esc(t('menu.' + k)[1])}</small></a>`).join('')}</div>`;
 const navItem = (key, href) => (MENUS[key] && !href
@@ -105,8 +108,7 @@ function chrome() {
     <span class="ti hide-xs">${icon('mail')}<a href="mailto:${esc(m?.email || '')}">${esc(m?.email || '')}</a></span>
     <span class="sep"></span>
     <span class="ti hide-xs" id="weather" aria-live="polite"></span>
-    <button type="button" data-a11y="fs" aria-pressed="${document.documentElement.dataset.fs === 'lg'}" title="${esc(t('fontBigger'))}">A+</button>
-    <button type="button" data-a11y="contrast" aria-pressed="${document.documentElement.dataset.contrast === 'high'}" title="${esc(t('contrast'))}">${icon('accessibility')}<span class="sr-only">${esc(t('a11y'))}</span></button>
+    <button type="button" class="a11y-btn" data-a11y-open aria-haspopup="dialog" aria-expanded="false">${icon('eye')}<span>${esc({ ru: 'Доступность', kz: 'Қолжетімділік', en: 'Accessibility' }[S.lang])}</span></button>
     ${(m?.social || []).map((s) => `<a class="ti" href="${esc(s.url)}" target="_blank" rel="noopener" aria-label="${esc(s.label)}">${icon(s.id)}</a>`).join('')}
   </div></div>
   <header class="header"><div class="wrap">
@@ -124,6 +126,7 @@ function chrome() {
     <div class="row" style="justify-content:space-between"><b>${esc(t('orgShort'))}</b><button class="icon-btn" data-close-drawer aria-label="${esc(t('close'))}">${icon('x')}</button></div>
     <form class="searchbar" style="margin:14px 0" data-hsearch><div class="sb">${icon('search')}<input class="input" type="search" placeholder="${esc(t('searchPh'))}" aria-label="${esc(t('searchPh'))}"></div></form>
     <a class="btn btn-accent" style="width:100%" href="${L('catalog')}">${icon('archive')}${esc(t('toCatalog'))}</a>
+    <button class="btn" style="width:100%;margin-top:8px" data-a11y-open>${icon('eye')}${esc({ ru: 'Доступность: крупный текст, озвучивание', kz: 'Қолжетімділік: ірі мәтін, дауыстап оқу', en: 'Accessibility: large text, read aloud' }[S.lang])}</button>
     <h4>${esc(t('nav.catalog'))}</h4><a href="${L('catalog')}">${esc(t('cat.title'))}</a><a href="${L('exhibitions')}">${esc(t('nav.exhibitions'))}</a><a href="${L('news')}">${esc(t('nav.news'))}</a><a href="${L('branches')}">${esc(t('nav.branches'))}</a>
     ${Object.keys(MENUS).map((k) => `<h4>${esc(t('nav.' + k))}</h4>${MENUS[k].map(([kk, href]) => `<a href="${L(href)}">${esc(t('menu.' + kk)[0])}</a>`).join('')}`).join('')}
   </div></div>`;
@@ -166,6 +169,8 @@ document.addEventListener('click', (e) => {
     d.dataset.theme = next; store.set('theme', next); try { localStorage.setItem('theme', next); } catch { /* */ }
     const b = e.target.closest('[data-theme-toggle]'); b.innerHTML = icon(next === 'dark' ? 'sun' : 'moon'); b.setAttribute('aria-label', next === 'dark' ? t('themeLight') : t('themeDark'));
   }
+  const a11yBtn = e.target.closest('[data-a11y-open]');
+  if (a11yBtn) { closeMenus(); openPanel(a11yBtn); return; }
   const a11y = e.target.closest('[data-a11y]')?.dataset.a11y;
   if (a11y) {
     const d = document.documentElement; const attr = a11y === 'fs' ? 'fs' : 'contrast'; const val = a11y === 'fs' ? 'lg' : 'high';
@@ -195,5 +200,6 @@ async function weather() {
 }
 
 if (!LANGS.includes(location.pathname.split('/')[1])) history.replaceState(null, '', `/${store.get('lang', 'ru')}/`);
+initA11y();
 render();
 export { DICT };

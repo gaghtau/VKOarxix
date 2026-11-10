@@ -115,7 +115,7 @@ export function miniMap(el, branches) {
   const Lf = LF(); const pts = [];
   branches.forEach((b) => { pts.push([b.lat, b.lng]); Lf.marker([b.lat, b.lng], { icon: pinIcon(b), title: tr(b.name), keyboard: true }).addTo(map).on('click', () => S.navigate(L('branches?b=' + b.slug))); });
   if (pts.length) map.fitBounds(pts, { padding: [24, 24] });
-  return () => map.remove();
+  return () => { map.stop(); map.off(); map.remove(); };
 }
 
 const TYPES = { all: { ru: 'Все', kz: 'Барлығы', en: 'All' }, main: { ru: 'Главное здание', kz: 'Бас ғимарат', en: 'Main building' }, city: { ru: 'Городские', kz: 'Қалалық', en: 'City' }, district: { ru: 'Районные', kz: 'Аудандық', en: 'District' }, personnel: { ru: 'По личному составу', kz: 'Жеке құрам бойынша', en: 'Personnel records' } };
@@ -193,7 +193,7 @@ export async function branches() {
       drawList();
       if (map) map.fitBounds(list.map((b) => [b.lat, b.lng]), { padding: [30, 30] });
       if (sel) setTimeout(() => select(sel), 200);
-      return () => map?.remove();
+      return () => { if (map) { map.stop(); map.off(); map.remove(); } };
     },
   };
 }
@@ -217,7 +217,7 @@ export async function histMap() {
       map.fitBounds(places.map((p) => [p.lat, p.lng]), { padding: [40, 40] });
       root.querySelector('.items').onclick = (e) => { const b = e.target.closest('[data-i]'); if (!b) return; const p = places[+b.dataset.i]; map.flyTo([p.lat, p.lng], 10); ms[+b.dataset.i].openPopup(); };
       root.querySelector('#hmap').addEventListener('click', (e) => { const a = e.target.closest('a[href^="/"]'); if (a) { e.preventDefault(); S.navigate(a.getAttribute('href')); } });
-      return () => map.remove();
+      return () => { map.stop(); map.off(); map.remove(); };
     },
   };
 }

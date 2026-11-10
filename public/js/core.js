@@ -65,6 +65,11 @@ export const demoTag = (on = true) => (on ? `<span class="tag tag-demo" title="�
 
 // ---------------------------------------------------------------- Лайтбокс с масштабированием и перелистыванием
 export function lightbox(items, start = 0) {
+  if (document.documentElement.dataset.imgmode === 'page') { // режим «фото на отдельной странице»
+    const it = items[start] || items[0];
+    S.navigate(`/${S.lang}/photo?src=${encodeURIComponent(String(it.src).replace('?s=t', ''))}&t=${encodeURIComponent(it.title || '')}`);
+    return;
+  }
   let i = start, z = 1, x = 0, y = 0, rot = 0;
   let el = document.querySelector('.lightbox');
   if (!el) { el = document.createElement('div'); el.className = 'lightbox'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); document.body.appendChild(el); }
