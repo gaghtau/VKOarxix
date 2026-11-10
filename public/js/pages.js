@@ -27,58 +27,88 @@ export function upcoming(cal, n = 3) {
 
 // ---------------------------------------------------------------- Главная
 export async function home() {
-  const [digital, news, cal, ex] = await Promise.all([
+  const [digital, news, cal] = await Promise.all([
     api(`/api/catalog/search?digital=1&per=48&lang=${S.lang}`, { cache: true }),
-    api('/api/content/news', { cache: true }), api('/api/calendar', { cache: true }), api('/api/content/exhibition', { cache: true }),
+    api('/api/content/news', { cache: true }), api('/api/calendar', { cache: true }),
   ]);
   const X = (o) => o[S.lang] ?? o.ru;
-  const m = S.meta || {}; const c = m.counts || {};
+  const m = S.meta || {};
   const photos = digital.items.filter((d) => d.doc_type === 'photo');
-  const pick = ['Куленов', 'Волков', 'Аманжолов', 'Чистяков', 'Кырыкбаев', 'Белослюдов', 'Бердус', 'Горохов'];
-  const faces = pick.map((n) => photos.find((p) => p.title.ru.includes(n))).filter(Boolean).concat(photos).filter((v, i, arr) => arr.indexOf(v) === i).slice(0, 8);
+  const pick = ['Куленов', 'Волков', 'Аманжолов', 'Чистяков', 'Кырыкбаев', 'Белослюдов', 'Бердус', 'Горохов', 'Карбушев', 'Коншин'];
+  const reel = pick.map((n) => photos.find((p) => p.title.ru.includes(n))).filter(Boolean).concat(photos).filter((v, i, a) => a.indexOf(v) === i).slice(0, 10);
+  const scr = M('uk-1891');
+  const days = upcoming(cal, 4);
   const lk = S.lang === 'kz' ? 'kz' : 'ru';
-  const exImg = { 'honorary-citizens': null, travellers: 'uk-1891', 'irtysh-energy': 'uk-hpp', 'archive-history': 'building' };
-  const cards = [
-    ...ex.map((e) => ({ href: 'exhibitions/' + e.slug, img: exImg[e.slug] ? M(exImg[e.slug])?.url : e.cover?.url, pill: X({ ru: 'Выставка', kz: 'Көрме', en: 'Exhibition' }), title: tr(e.title), d: tr(e.intro) })),
-    { href: 'family', img: M('reading-1')?.url, pill: X({ ru: 'Помощь', kz: 'Көмек', en: 'Help' }), title: X({ ru: 'Как найти документы о родственнике', kz: 'Туысқан туралы құжаттарды табу', en: 'Find records about a relative' }), d: X({ ru: 'Три вопроса — и памятка: куда обратиться, что взять с собой.', kz: 'Үш сұрақ — және жадынама.', en: 'Three questions and a checklist.' }) },
-    { href: 'then-and-now', split: ['uk-1891', 'uk-irtysh'], pill: X({ ru: 'Тогда и сейчас', kz: 'Сол кезде және қазір', en: 'Then & now' }), title: X({ ru: 'Усть-Каменогорск: 1891 и сегодня', kz: 'Өскемен: 1891 және бүгін', en: 'Ust-Kamenogorsk: 1891 and today' }), d: X({ ru: 'Сдвиньте шторку и сравните виды.', kz: 'Жылжытып, салыстырыңыз.', en: 'Drag to compare.' }) },
-  ];
-  const ico = `<svg class="ico" viewBox="0 0 96 96" aria-hidden="true"><defs><linearGradient id="bxF" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F1E6CF"/><stop offset="1" stop-color="#D9C6A2"/></linearGradient><linearGradient id="bxT" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFF8EA"/><stop offset="1" stop-color="#E9DCC1"/></linearGradient><linearGradient id="bxS" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#CDB68C"/><stop offset="1" stop-color="#B49B6E"/></linearGradient></defs><path d="M14 34 L48 20 L82 34 L48 48Z" fill="url(#bxT)"/><path d="M14 34 L48 48 L48 86 L14 72Z" fill="url(#bxF)"/><path d="M82 34 L48 48 L48 86 L82 72Z" fill="url(#bxS)"/><path d="M22 44 L40 51 L40 62 L22 55Z" fill="#1F3D2B" opacity=".9"/><path d="M26 49 L36 53" stroke="#E8DCC4" stroke-width="2" stroke-linecap="round"/><path d="M58 50 L74 43" stroke="#8B5CF6" stroke-width="5" stroke-linecap="round"/><path d="M14 34 L48 48 L82 34" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="1.2"/></svg>`;
+  const nm = (d) => tr(d.title).replace(/^[^:]+:\s*/, '');
+  const CH = [X({ ru: 'Вход', kz: 'Кіру', en: 'Entry' }), X({ ru: 'Стол', kz: 'Үстел', en: 'Desk' }), X({ ru: 'Люди', kz: 'Адамдар', en: 'People' }), X({ ru: 'Время', kz: 'Уақыт', en: 'Time' }), X({ ru: 'Журнал', kz: 'Журнал', en: 'Log' })];
+  const head = (i, title, extra = '') => `<div class="d-head"><div><span class="mlabel">${String(i + 1).padStart(2, '0')} / 05 — ${esc(CH[i])}</span><h2 data-split>${title}</h2></div>${extra}</div>`;
   const html = `
-  <section class="hero-s" aria-labelledby="hero-title"><div class="wrap">
-    <a class="badge" href="${L('memory')}"><b>${c.fund || 0}</b>${esc(X({ ru: 'фондов уже описаны онлайн — смотрите личные фонды', kz: 'қор онлайн сипатталған — жеке қорларды қараңыз', en: 'fonds already described online — see personal fonds' }))} →</a>
-    <h1 id="hero-title">${ico}<span>${esc(X({ ru: 'Архив Восточного Казахстана', kz: 'Шығыс Қазақстан архиві', en: 'The archive of East Kazakhstan' }))}</span></h1>
-    <p class="sub">${esc(X({ ru: 'Документы, фотографии и истории людей региона с 1940 года. Ищите по фамилии, городу, году — или просто задайте вопрос.', kz: '1940 жылдан бергі өңір адамдарының құжаттары мен суреттері. Тегі, қала, жыл бойынша іздеңіз.', en: 'Documents, photographs and stories of the region since 1940. Search by surname, town or year — or just ask.' }))}</p>
-    <form class="psearch" role="search" data-home-search>${icon('search')}<label class="sr-only" for="home-q">${esc(t('hero.ph'))}</label><input id="home-q" type="search" placeholder="${esc(X({ ru: 'Например: Куленов, Риддер 1941, фото Усть-Каменогорска', kz: 'Мысалы: Куленов, Риддер 1941', en: 'e.g. Kulenov, Ridder 1941' }))}" autocomplete="off"><button class="btn btn-accent">${esc(t('hero.go'))}</button></form>
-    <div class="quick-pills">
-      <a href="${L('family')}">${icon('users')}${esc(X({ ru: 'Найти родственника', kz: 'Туысқанды табу', en: 'Find a relative' }))}</a>
-      <a href="${L('services')}">${icon('file')}${esc(X({ ru: 'Получить справку', kz: 'Анықтама алу', en: 'Get a certificate' }))}</a>
-      <a href="${L('branches')}">${icon('pin')}${esc(X({ ru: 'Филиалы на карте', kz: 'Филиалдар картада', en: 'Branches map' }))}</a>
-      <a href="${L('calendar')}">${icon('calendar')}${esc(X({ ru: 'Памятные даты', kz: 'Атаулы күндер', en: 'Memorable dates' }))}</a>
+  <nav class="d-rail" aria-label="${esc(X({ ru: 'Главы страницы', kz: 'Бет тараулары', en: 'Page chapters' }))}">${CH.map((c, i) => `<a href="#ch${i + 1}" aria-label="${esc(c)}" ${i === 0 ? 'aria-current="true"' : ''}>${i + 1}</a>`).join('')}</nav>
+  <div class="d-corner l" aria-hidden="true">${esc(t('orgShort'))} / ${esc(X({ ru: 'с 1940', kz: '1940 жылдан', en: 'since 1940' }))}</div>
+  <div class="d-corner c"><a href="#ch2" data-next>${esc(X({ ru: 'Следующая глава', kz: 'Келесі тарау', en: 'Next chapter' }))} ↓</a></div>
+  <div class="d-corner r" aria-hidden="true"><b data-count>01</b> / 05</div>
+
+  <section class="d-intro d-ch" id="ch1" aria-labelledby="hero-title"><div class="crt" data-crt>
+    <div class="crt-body"><div class="crt-screen">${scr ? `<img src="${esc(scr.url)}" alt="">` : ''}
+      <div class="crt-in">
+        <span class="mlabel">${esc(X({ ru: 'Госархив ВКО / открытый архив', kz: 'ШҚО мемархиві / ашық архив', en: 'State Archive EKR / open archive' }))}</span>
+        <div><h1 id="hero-title" data-type="${esc(X({ ru: 'Память края — открыта', kz: 'Өлке жады — ашық', en: 'The region’s memory — open' }))}">${esc(X({ ru: 'Память края — открыта', kz: 'Өлке жады — ашық', en: 'The region’s memory — open' }))}<span class="caret" aria-hidden="true"></span></h1></div>
+        <div style="display:grid;gap:14px">
+          <form class="crt-search" role="search" data-home-search><span aria-hidden="true">&gt;</span><label class="sr-only" for="home-q">${esc(t('hero.ph'))}</label><input id="home-q" type="search" placeholder="${esc(X({ ru: 'фамилия, город, год или вопрос', kz: 'тегі, қала, жыл немесе сұрақ', en: 'surname, town, year or a question' }))}" autocomplete="off"><button>${esc(X({ ru: 'НАЙТИ', kz: 'ІЗДЕУ', en: 'SEARCH' }))} →</button></form>
+          <div class="crt-hint"><span class="mlabel" style="color:#BDB5A4">${esc(X({ ru: 'Например:', kz: 'Мысалы:', en: 'Try:' }))} <a href="${L('catalog?q=' + encodeURIComponent('Куленов'))}" style="display:inline">Куленов</a> · <a href="${L('catalog?q=' + encodeURIComponent('Ф.1466'))}" style="display:inline">Ф.1466</a></span><a href="#ch2">${esc(X({ ru: 'Листайте', kz: 'Төмен', en: 'Keep scrolling' }))} <i aria-hidden="true"></i></a></div>
+        </div>
+      </div></div>
+      <div class="crt-bezel" aria-hidden="true"><span class="grill"></span><span class="led"></span></div>
     </div>
-    <div class="stats-row"><span><b>${(c.fund || 0) + (c.inventory || 0) + (c.case || 0) + (c.document || 0)}</b>${esc(X({ ru: 'описаний в каталоге', kz: 'сипаттама', en: 'catalogue records' }))}</span><span><b>${m.digital || 0}</b>${esc(X({ ru: 'фото онлайн', kz: 'онлайн сурет', en: 'photos online' }))}</span><span><b>${(m.branches || []).length}</b>${esc(X({ ru: 'зданий архива', kz: 'ғимарат', en: 'locations' }))}</span><span><b>1940</b>${esc(X({ ru: 'год основания', kz: 'құрылған жылы', en: 'founded' }))}</span></div>
+    <div class="crt-neck" aria-hidden="true"></div>
+    <div class="crt-base" aria-hidden="true"><span class="pw"></span><span class="vents"></span><span class="slot"></span></div>
   </div></section>
 
-  <section class="sblock" aria-labelledby="gal-h"><div class="wrap">
-    <div class="shead"><div><h2 id="gal-h">${esc(X({ ru: 'Выставки и подборки', kz: 'Көрмелер мен жинақтар', en: 'Exhibitions & collections' }))}</h2><p>${esc(X({ ru: 'Реальные документы и фотографии из фондов архива.', kz: 'Архив қорларындағы нақты құжаттар.', en: 'Real records from the archive.' }))}</p></div><a class="more" href="${L('exhibitions')}">${esc(t('home.all'))} →</a></div>
-    <div class="gal">${cards.map((k, i) => `<a class="gcard reveal ${k.split ? 'split' : ''}" style="--d:${i % 2}" href="${L(k.href)}"><div class="shot">${k.split ? k.split.map((x) => `<img src="${esc(M(x)?.thumb || '')}" alt="" loading="lazy">`).join('') : k.img ? `<img src="${esc(k.img)}" alt="" loading="lazy">` : ''}<span class="pill">${esc(k.pill)}</span></div><b>${esc(k.title)}</b><span class="d">${esc(k.d)}</span></a>`).join('')}</div>
+  <section class="d-ch" id="ch2"><div class="wrap">
+    ${head(1, esc(X({ ru: 'Всё, что нужно — на одном столе', kz: 'Керегінің бәрі — бір үстелде', en: 'Everything you need, on one desk' })))}
+    <div class="d-board" data-board>
+      <a class="note dark b1" style="--tr:3deg" href="${L('catalog')}"><span class="n"><span>01</span><span>↗</span></span><h3>${esc(X({ ru: 'Найти документ.', kz: 'Құжат табу.', en: 'Find a record.' }))}</h3><p>${esc(X({ ru: 'Фонды, описи, фотографии. Можно просто спросить.', kz: 'Қорлар, тізімдемелер, суреттер.', en: 'Fonds, inventories, photos — or just ask.' }))}</p><span class="pill" style="background:var(--paper);color:var(--ink)">${esc(X({ ru: 'Каталог', kz: 'Каталог', en: 'Catalogue' }))}</span></a>
+      <a class="note b2" href="${L('about')}"><span class="n"><span>02 / ${esc(t('orgShort'))}</span><span>↗</span></span><h3 style="font-size:clamp(2rem,2.6vw + 1rem,3.4rem);max-width:10ch">${esc(X({ ru: 'Память края с 1940 года.', kz: '1940 жылдан бергі өлке жады.', en: 'The region’s memory since 1940.' }))}</h3><p style="max-width:26ch">${esc(X({ ru: `Документы, фото и судьбы людей Восточного Казахстана. ${m.counts?.fund || 77} фондов уже онлайн.`, kz: `Шығыс Қазақстан адамдарының құжаттары мен суреттері. ${m.counts?.fund || 77} қор онлайн.`, en: `Records, photos and lives of East Kazakhstan. ${m.counts?.fund || 77} fonds online.` }))}</p>
+        <span class="slip" aria-hidden="true"><b>${esc(X({ ru: 'Карточка фонда', kz: 'Қор карточкасы', en: 'Fonds card' }))}</b>Ф.1466 · Оп.3<br>Куленов А.С.<br>1956–2007</span></a>
+      <a class="note grey b3" style="--tr:-3deg" href="${L('family')}"><span class="n"><span>03</span><span>↗</span></span><h3>${esc(X({ ru: 'Найти родственника.', kz: 'Туысқанды табу.', en: 'Find a relative.' }))}</h3><div class="ic" aria-hidden="true">${icon('user')}${icon('search')}${icon('file')}</div><p>${esc(X({ ru: 'Три вопроса — и памятка: куда идти и что взять.', kz: 'Үш сұрақ — және жадынама.', en: 'Three questions — and a checklist.' }))}</p></a>
+      <a class="note grey b4" style="--tr:2deg" href="${L('branches')}"><span class="n"><span>04</span><span>↗</span></span><h3>${esc(X({ ru: 'Прийти в архив.', kz: 'Архивке келу.', en: 'Visit us.' }))}</h3><span class="pill">${esc(X({ ru: 'Пн–Пт 8:00–17:00', kz: 'Дс–Жм 8:00–17:00', en: 'Mon–Fri 8–17' }))}</span><p>${esc(X({ ru: `${(m.branches || []).length} зданий: адреса и маршрут.`, kz: `${(m.branches || []).length} ғимарат: мекенжай мен бағыт.`, en: `${(m.branches || []).length} locations with routes.` }))}</p></a>
+      <a class="note b5" style="--tr:-1deg" href="${L('exhibitions')}"><span class="n"><span>05</span><span>↗</span></span><h3>${esc(X({ ru: 'Выставки.', kz: 'Көрмелер.', en: 'Exhibitions.' }))}</h3><p>${esc(X({ ru: 'Люди края, путешественники XIX века, ГЭС на Иртыше.', kz: 'Өлке адамдары, саяхатшылар, СЭС.', en: 'People, travellers, Irtysh dams.' }))}</p></a>
+      <div class="note green b6" style="--tr:2.5deg"><span class="n"><span>06</span><span></span></span><h3>${esc(X({ ru: 'Есть вопрос?', kz: 'Сұрағыңыз бар ма?', en: 'Any questions?' }))}</h3><p style="font-family:var(--mono);font-size:.86rem"><a href="tel:+77232255976" style="color:inherit">${esc(m.org?.phoneReception || '')}</a><br><a href="mailto:${esc(m.org?.email || '')}" style="color:inherit">${esc(m.org?.email || '')}</a></p><button class="btn btn-sm" type="button" data-cta-ask style="justify-self:start;border-color:#EFE8DA;color:#EFE8DA">${esc(X({ ru: 'Спросить помощника', kz: 'Көмекшіден сұрау', en: 'Ask the assistant' }))} →</button></div>
+    </div>
   </div></section>
 
-  <section class="sblock" aria-labelledby="faces-h"><div class="wrap">
-    <div class="shead"><div><h2 id="faces-h">${esc(X({ ru: 'Лица из личных фондов', kz: 'Жеке қорлардағы тұлғалар', en: 'Faces from personal fonds' }))}</h2><p>${esc(X({ ru: 'Учёные, писатели, инженеры и фронтовики — каждый портрет ведёт к описанию фонда.', kz: 'Әр портрет қор сипаттамасына апарады.', en: 'Each portrait links to its fonds description.' }))}</p></div><a class="more" href="${L('memory')}">${esc(X({ ru: 'Все люди', kz: 'Барлық тұлғалар', en: 'All people' }))} →</a></div>
-    <div class="faces">${faces.map((d, i) => `<a class="face reveal" style="--d:${i % 4}" href="${L('catalog/' + d.id)}"><div class="ph"><img src="${fileUrl(d.id, 1, true)}" alt="${esc(tr(d.title).replace(/^[^:]+:\s*/, ''))}" loading="lazy"></div><b>${esc(tr(d.title).replace(/^[^:]+:\s*/, ''))}</b><span>${esc(d.cipher)}</span></a>`).join('')}</div>
+  <section class="d-ch d-reel" id="ch3"><div class="wrap">
+    ${head(2, esc(X({ ru: 'Лица из личных фондов', kz: 'Жеке қорлардағы тұлғалар', en: 'Faces from personal fonds' })), `<a class="btn btn-sm" href="${L('memory')}">${esc(X({ ru: 'Все люди', kz: 'Барлық тұлғалар', en: 'All people' }))} ↗</a>`)}
+    <div class="reel-wrap" data-reel><div class="reel-track">${reel.map((d, i) => `<a class="poster" href="${L('catalog/' + d.id)}"><span class="mlabel"><span>${String(i + 1).padStart(2, '0')} / ${String(reel.length).padStart(2, '0')}</span><span>${esc(d.cipher)}</span></span><img src="${fileUrl(d.id, 1, true)}" alt="${esc(nm(d))}" loading="lazy"><h3>${esc(nm(d))}</h3><p>${esc((tr(d.descr).replace(/^Фотография из фонда личного происхождения\.\s*/, '').split(/[.–—]/)[1] || '').trim().slice(0, 70))}</p></a>`).join('')}</div></div>
+    <div class="reel-ctrl"><button type="button" data-reel-prev aria-label="${esc(X({ ru: 'Назад', kz: 'Артқа', en: 'Previous' }))}">${icon('left')}</button><button type="button" data-reel-next aria-label="${esc(X({ ru: 'Дальше', kz: 'Әрі қарай', en: 'Next' }))}">${icon('right')}</button><span class="reel-count mlabel" data-reel-count>01 / ${String(reel.length).padStart(2, '0')}</span></div>
   </div></section>
 
-  <section class="sblock"><div class="wrap rows">
-    <div class="card reveal"><div class="shead" style="margin:10px 0 0"><h3>${esc(t('nav.news'))}</h3><a class="more" href="${L('news')}">${esc(t('home.all'))} →</a></div>
-      <ul>${news.slice(0, 4).map((n) => `<li><a href="${L('news/' + n.slug)}"><time>${esc(fmtDate(n.date))}</time><b>${esc(tr(n.title))}</b></a></li>`).join('')}</ul></div>
-    <div class="card reveal" style="--d:1"><div class="shead" style="margin:10px 0 0"><h3>${esc(t('home.calTitle'))}</h3><a class="more" href="${L('calendar')}">${esc(t('home.all'))} →</a></div>
-      <ul>${upcoming(cal, 4).map((d) => `<li><span><time>${esc(d.date[lk])}</time><span>${esc(d.text[lk])}</span></span></li>`).join('')}</ul></div>
+  <section class="d-ch" id="ch4"><div class="wrap">
+    <span class="mlabel">04 / 05 — ${esc(CH[3])}</span>
+    <p class="d-statement" data-highlight>${esc(X({ ru: 'С 1940 года архив хранит память края: письма, фотографии, приказы и судьбы людей. Теперь они открыты каждому — с телефона и без очередей.', kz: '1940 жылдан бері архив өлке жадын сақтайды: хаттар, суреттер, бұйрықтар және адамдар тағдыры. Енді олар әркімге ашық.', en: 'Since 1940 the archive has kept the region’s memory: letters, photographs, orders and lives. Now they are open to everyone.' }))}</p>
+    <div class="d-split2"><div data-clip>${compareHtml('uk-1891', 'uk-irtysh', '1891', X({ ru: 'сегодня', kz: 'бүгін', en: 'today' }))}</div>
+      <div class="note grey" style="--r:1.2deg;min-height:0"><span class="n"><span>${esc(X({ ru: 'Тогда и сейчас', kz: 'Сол кезде және қазір', en: 'Then and now' }))}</span><span>↔</span></span><p>${esc(X({ ru: 'Усть-Каменогорск на гравюре 1891 года и сегодня. Сдвиньте шторку.', kz: 'Өскемен 1891 жылы және бүгін. Жылжытыңыз.', en: 'Ust-Kamenogorsk in 1891 and today. Drag to compare.' }))}</p><a class="btn btn-sm" href="${L('then-and-now')}">${esc(t('home.all'))} ↗</a></div></div>
+  </div></section>
+
+  <section class="d-ch" id="ch5"><div class="wrap">
+    ${head(4, esc(X({ ru: 'Что нового в архиве', kz: 'Архивте не жаңалық', en: 'What’s new' })))}
+    <div class="d-log">
+      <div class="note" style="--r:-.6deg;--tr:1deg"><span class="n"><span>${esc(t('nav.news'))}</span><a href="${L('news')}" style="color:inherit">${esc(t('home.all'))} ↗</a></span><ul>${news.slice(0, 4).map((n) => `<li><a href="${L('news/' + n.slug)}"><time>${esc(fmtDate(n.date))}</time><b>${esc(tr(n.title))}</b></a></li>`).join('')}</ul></div>
+      <div class="note grey" style="--r:.8deg;--tr:-2deg"><span class="n"><span>${esc(t('home.calTitle'))}</span><a href="${L('calendar')}" style="color:inherit">${esc(t('home.all'))} ↗</a></span><ul>${days.map((d) => `<li><span><time>${esc(d.date[lk])}</time><span>${esc(d.text[lk])}</span></span></li>`).join('')}</ul></div>
+    </div>
   </div></section>`;
   return {
     title: '', html,
     after(root) {
       root.querySelectorAll('[data-home-search]').forEach((f) => f.addEventListener('submit', (e) => { e.preventDefault(); const q = f.querySelector('input').value.trim(); S.navigate(L('catalog') + (q ? '?q=' + encodeURIComponent(q) : '')); }));
+      root.querySelectorAll('[data-cta-ask]').forEach((b) => { b.onclick = () => S.openAssistant?.(); });
+      mountCompare(root);
+      // Лента: кнопки «назад / дальше»
+      const wrap = root.querySelector('[data-reel]'), track = wrap.querySelector('.reel-track'), count = root.querySelector('[data-reel-count]');
+      const posters = [...track.children]; let idx = 0;
+      const go = (d) => { idx = Math.max(0, Math.min(posters.length - 1, idx + d)); count.textContent = `${String(idx + 1).padStart(2, '0')} / ${String(posters.length).padStart(2, '0')}`; if (window.__reelGoto) window.__reelGoto(idx); else posters[idx].scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' }); };
+      root.querySelector('[data-reel-prev]').onclick = () => go(-1);
+      root.querySelector('[data-reel-next]').onclick = () => go(1);
     },
   };
 }

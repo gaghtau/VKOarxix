@@ -648,6 +648,7 @@ app.get('/sitemap.xml', (req, res) => {
 
 // ---------------------------------------------------------------- Статика и SPA с серверными мета-тегами
 app.use('/vendor/leaflet', express.static(join(root, 'node_modules', 'leaflet', 'dist'), { maxAge: '7d' }));
+app.use('/vendor/gsap', express.static(join(root, 'node_modules', 'gsap', 'dist'), { maxAge: '7d' }));
 app.use(express.static(join(root, 'public'), { index: false, maxAge: 0, setHeaders: (res, p) => { if (/.(pdf|svg|png|jpg|webp)$/.test(p)) res.setHeader('Cache-Control', 'public, max-age=86400'); } }));
 const shell = readFileSync(join(root, 'public', 'index.html'), 'utf8');
 const adminShell = readFileSync(join(root, 'public', 'admin.html'), 'utf8');

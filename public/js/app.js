@@ -7,6 +7,7 @@ import * as C from './catalog.js';
 import * as M from './memory.js';
 import * as F from './features.js';
 import { initA11y, openPanel, applyImageMode, photoPage, stopTts } from './a11y.js';
+import { initFx, killFx, curtain } from './fx.js';
 
 // ---------------------------------------------------------------- Маршруты (ЧПУ)
 const ROUTES = [
@@ -42,7 +43,7 @@ async function render({ scroll = true } = {}) {
   if (langChanged) chrome();
   const route = ROUTES.find(([re]) => re.test(rest));
   const app = document.getElementById('app');
-  cleanup?.(); cleanup = null; stopTts();
+  cleanup?.(); cleanup = null; stopTts(); killFx();
   let section = 'notfound', out;
   try {
     if (route) { section = route[2]; out = await route[1](...rest.match(route[0]).slice(1)); }
@@ -59,6 +60,7 @@ async function render({ scroll = true } = {}) {
   cleanup = out.after?.(app) || null;
   applyImageMode(app);
   observeReveal(app);
+  initFx(app);
   if (scroll) { if (location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView(); else window.scrollTo(0, 0); }
   if (!out.keepFocus) app.focus({ preventScroll: true });
   hit(section);
@@ -72,8 +74,9 @@ function hit(page) {
 
 export function navigate(url, { replace = false, scroll = true } = {}) {
   S.navigate ||= navigate;
-  if (replace) history.replaceState(null, '', url); else history.pushState(null, '', url);
-  render({ scroll });
+  if (replace) { history.replaceState(null, '', url); render({ scroll }); return; }
+  // Шторка между страницами (только для обычного перехода по ссылке)
+  curtain(() => { history.pushState(null, '', url); return render({ scroll }); });
 }
 window.addEventListener('popstate', () => render({ scroll: false }));
 document.addEventListener('click', (e) => {
@@ -107,14 +110,15 @@ function chrome() {
   document.getElementById('chrome-top').innerHTML = `
   <div class="topbar"><div class="wrap">
     <span class="ti">${icon('phone')}<a href="tel:+77232255976">${esc(m?.phoneReception || '8 (7232) 25-59-76')}</a></span>
-    <a class="ann" href="${L('family')}"><b>${esc({ ru: 'Новое', kz: 'Жаңа', en: 'New' }[S.lang])}</b><span>${esc({ ru: 'Как найти документы о родственнике — пошаговая памятка', kz: 'Туысқан туралы құжаттарды қалай табуға болады', en: 'How to find records about a relative' }[S.lang])}</span> →</a>
-    <span class="tools"><button type="button" class="a11y-btn" data-a11y-open aria-haspopup="dialog" aria-expanded="false">${icon('eye')}<span>${esc({ ru: 'Для слабовидящих', kz: 'Нашар көретіндерге', en: 'Accessibility' }[S.lang])}</span></button>${langs}</span>
+    <span class="sep"></span>
+    <button type="button" class="a11y-btn" data-a11y-open aria-haspopup="dialog" aria-expanded="false">${icon('eye')}<span>${esc({ ru: 'Для слабовидящих', kz: 'Нашар көретіндерге', en: 'Accessibility' }[S.lang])}</span></button>
+    ${langs}
   </div></div>
   <header class="header"><div class="wrap">
     <a class="logo" href="${L('')}" aria-label="${esc(t('orgSub'))}"><span class="logo-mark">${logoMark}</span><span class="logo-text"><b>${esc(t('orgShort'))}</b><span>${esc(t('orgSub'))}</span></span></a>
     <nav aria-label="Main"><ul class="nav">${navItem('catalog', 'catalog')}${navItem('history')}${navItem('exhibitions', 'exhibitions')}${navItem('info')}${navItem('about')}</ul></nav>
     <div class="hdr-tools">
-      <a class="search-pill" href="${L('catalog')}" aria-label="${esc(t('searchPh'))}">${icon('search')}<span>${esc({ ru: 'Поиск по архиву', kz: 'Архивтен іздеу', en: 'Search the archive' }[S.lang])}</span></a>
+      <a class="icon-btn" href="${L('catalog')}" aria-label="${esc(t('searchPh'))}" title="${esc(t('searchPh'))}">${icon('search')}</a>
       <a class="btn btn-sm login-btn" href="/cabinet" target="_blank" rel="noopener" title="${esc({ ru: 'Кабинет редактора', kz: 'Редактор кабинеті', en: 'Editor workspace' }[S.lang])}">${icon('user')}<span>${esc(loginLabel())}</span></a>
       <button class="icon-btn burger" type="button" data-burger aria-label="${esc(t('openMenu'))}" aria-expanded="false" aria-controls="drawer">${icon('menu')}</button>
     </div>
