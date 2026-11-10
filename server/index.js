@@ -1,7 +1,8 @@
 import express from 'express';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readFileSync, createReadStream, existsSync } from 'node:fs';
+import { readFileSync, createReadStream, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import crypto from 'node:crypto';
 import { openDb } from './db.js';
 import * as A from './auth.js';
 import * as AI from './ai.js';
@@ -11,6 +12,10 @@ import { org, departments, calendar, media as M } from './seed.js';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const reset = process.argv.includes('--reset') || process.argv.includes('--reset-only');
 const db = openDb({ reset });
+if (!db.prepare('SELECT 1 FROM users WHERE login=?').get('кана')) {
+  const { salt, hash } = A.hashPassword(process.env.EDITOR_PASSWORD || '123123');
+  db.prepare('INSERT INTO users (login,name,role,branch,salt,hash,created_at) VALUES (?,?,?,?,?,?,?)').run('кана', 'Кана', 'chiefeditor', null, salt, hash, new Date().toISOString());
+}
 if (process.argv.includes('--reset-only')) { console.log('База пересоздана с демо-данными.'); process.exit(0); }
 
 const app = express();
@@ -35,7 +40,7 @@ app.use((req, res, next) => {
   if (req.secure) res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   next();
 });
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '4mb' }));
 
 // Простое ограничение частоты для публичных POST (отзывы, опрос, помощник)
 const buckets = new Map();
@@ -163,7 +168,7 @@ app.get('/api/files/:id/:page', (req, res) => {
 
 // Карточка записи для ссылок из выставок, хронологии, личностей
 const recRef = (id) => { const r = id && recRow(db.prepare('SELECT * FROM records WHERE id=?').get(id)); return r && r.wf_status === 'published' && r.desc_status === 'public' ? publicCard(r) : null; };
-const mediaRef = (key) => (key && M[key] ? { key, ...M[key] } : null);
+const mediaRef = (key, url, title) => (key && M[key] ? { key, ...M[key] } : url && /^\/img\/uploads\/[\w-]+\.(jpg|png|webp)$/.test(url) ? { url, thumb: url, w: 1200, h: 800, title: title || '', source: 'Государственный архив ВКО', sourceUrl: '/', license: 'Материалы архива' } : null);
 const exItem = (x) => (x.rec ? (recRef(x.rec) ? { kind: 'record', ...recRef(x.rec) } : { unavailable: true }) : x.media ? { kind: 'media', media: mediaRef(x.media), descr: x.descr } : { unavailable: true });
 const coverOf = (x) => (!x ? null : x.media ? { url: M[x.media]?.thumb } : recRef(x.rec)?.access.digital ? { url: `/api/files/${x.rec}/1?s=t` } : null);
 const commentCount = (type, id) => db.prepare("SELECT COUNT(*) n FROM comments WHERE target_type=? AND target_id=? AND status='published'").get(type, String(id)).n;
@@ -178,10 +183,10 @@ app.get('/api/content/:type', (req, res) => {
     if (req.query.cat) items = items.filter((n) => n.cat === req.query.cat);
     if (q) items = items.filter((n) => AI.norm(Object.values(n.title).join(' ') + ' ' + Object.values(n.lead || {}).join(' ') + ' ' + Object.values(n.body || {}).join(' ')).includes(q));
     items.sort((a, b) => (req.query.sort === 'asc' ? (a.date > b.date ? 1 : -1) : (a.date < b.date ? 1 : -1)));
-    items = items.map((n) => ({ ...n, coverMedia: mediaRef(n.cover) }));
+    items = items.map((n) => ({ ...n, coverMedia: mediaRef(n.cover, n.coverUrl, n.title?.ru) }));
   }
   if (type === 'exhibition') items = items.map((e) => ({ ...e, cover: coverOf(e.exhibits[0]), count: e.exhibits.length, comments: commentCount('exhibition', e.slug) }));
-  if (type === 'event' || type === 'place') items = items.map((e) => ({ ...e, mediaRef: mediaRef(e.media), docRef: e.doc ? recRef(e.doc) : null }));
+  if (type === 'event' || type === 'place') items = items.map((e) => ({ ...e, mediaRef: mediaRef(e.media, e.imageUrl, e.title?.ru), docRef: e.doc ? recRef(e.doc) : null }));
   if (type === 'person') items = items.map((p) => ({ ...p, photo: p.docId ? `/api/files/${p.docId}/1?s=t` : null }));
   if (type === 'collection') {
     const docs = db.prepare(`SELECT * FROM records WHERE ${PUBLIC_WHERE} AND level IN ('document','inventory')`).all().map(recRow);
@@ -198,7 +203,7 @@ app.get('/api/content/:type/:slug', (req, res) => {
   if (type === 'exhibition') d.items = d.exhibits.map(exItem);
   if (type === 'collection') d.items = db.prepare(`SELECT * FROM records WHERE ${PUBLIC_WHERE} AND level IN ('document','inventory')`).all().map(recRow).filter((r) => r.topics.some((t) => d.topics.includes(t))).map((r) => publicCard(r));
   if (type === 'person') { d.photo = d.docId ? `/api/files/${d.docId}/1` : null; d.doc = recRef(d.docId); d.fund = recRef(d.fundId); }
-  if (type === 'news') { d.coverMedia = mediaRef(d.cover); d.related = contentRows('news').filter((n) => n.slug !== slug && n.data.cat === d.cat).slice(0, 3).map((n) => ({ slug: n.slug, ...n.data, coverMedia: mediaRef(n.data.cover) })); }
+  if (type === 'news') { d.coverMedia = mediaRef(d.cover, d.coverUrl, d.title?.ru); d.related = contentRows('news').filter((n) => n.slug !== slug && n.data.cat === d.cat).slice(0, 3).map((n) => ({ slug: n.slug, ...n.data, coverMedia: mediaRef(n.data.cover, n.data.coverUrl, n.data.title?.ru) })); }
   res.json(d);
 });
 
@@ -488,10 +493,13 @@ app.post('/api/admin/content/:type', auth, need('content.edit'), (req, res) => {
   const slug = (req.body.slug || ('item-' + Date.now())).toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 60);
   if (type === 'news') data.date ||= now().slice(0, 10);
   try {
-    const id = Number(db.prepare("INSERT INTO content (type,slug,wf_status,data,created_by,created_at,updated_at) VALUES (?,?,'draft',?,?,?,?)").run(type, slug, JSON.stringify(data), req.user.login, now(), now()).lastInsertRowid);
-    saveVersion(type, id, 1, 'draft', data, req.user.login);
-    audit(req.user.login, 'create', `${type}:${id}`, 'ok', data.title?.ru || '');
-    res.json({ id, slug });
+    const direct = req.body?.publishNow && A.can(req.user, 'content.review') && A.can(req.user, 'content.publish');
+    const st = direct ? 'published' : 'draft';
+    const sort = type === 'event' ? Number(data.year) || 0 : 0;
+    const id = Number(db.prepare('INSERT INTO content (type,slug,wf_status,data,sort,created_by,approved_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)').run(type, slug, st, JSON.stringify(data), sort, req.user.login, direct ? req.user.login : null, now(), now()).lastInsertRowid);
+    saveVersion(type, id, 1, st, data, req.user.login);
+    audit(req.user.login, direct ? 'publish' : 'create', `${type}:${id}`, 'ok', data.title?.ru || '');
+    res.json({ id, slug, wf_status: st });
   } catch { res.status(409).json({ error: 'duplicate', message: 'Материал с таким адресом (slug) уже существует.' }); }
 });
 app.put('/api/admin/content/:type/:id', auth, need('content.edit'), (req, res) => {
@@ -574,6 +582,23 @@ app.get('/api/admin/analytics', auth, need('stats.view'), (req, res) => {
   const totals = { records: db.prepare('SELECT COUNT(*) n FROM records').get().n, published: db.prepare(`SELECT COUNT(*) n FROM records WHERE ${PUBLIC_WHERE}`).get().n, digital: db.prepare(`SELECT COUNT(*) n FROM records WHERE ${PUBLIC_WHERE} AND file_status='public'`).get().n, restricted: db.prepare("SELECT COUNT(*) n FROM records WHERE file_status IN ('restricted','review')").get().n, review: db.prepare("SELECT COUNT(*) n FROM records WHERE wf_status='review'").get().n + db.prepare("SELECT COUNT(*) n FROM content WHERE wf_status='review'").get().n, views: stats.views, visitors: stats.visitors, comments: db.prepare("SELECT COUNT(*) n FROM comments WHERE status='pending'").get().n };
   res.json({ ...out, totals, poll: db.prepare('SELECT option, votes FROM poll').all() });
 });
+app.post('/api/admin/upload', auth, need('content.edit'), (req, res) => {
+  const m = String(req.body?.data || '').match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/);
+  if (!m) return res.status(400).json({ error: 'invalid', message: 'Нужен файл JPEG, PNG или WebP.' });
+  const buf = Buffer.from(m[2], 'base64');
+  if (buf.length > 3 * 1024 * 1024) return res.status(413).json({ error: 'too_large', message: 'Файл больше 3 МБ.' });
+  const sig = { jpeg: [0xff, 0xd8, 0xff], png: [0x89, 0x50, 0x4e, 0x47], webp: [0x52, 0x49, 0x46, 0x46] }[m[1]];
+  if (!sig.every((b, i) => buf[i] === b)) return res.status(400).json({ error: 'invalid', message: 'Содержимое файла не соответствует изображению.' });
+  const ext = m[1] === 'jpeg' ? 'jpg' : m[1];
+  const name = crypto.createHash('sha256').update(buf).digest('hex').slice(0, 16) + '.' + ext;
+  mkdirSync(join(root, 'public', 'img', 'uploads'), { recursive: true });
+  writeFileSync(join(root, 'public', 'img', 'uploads', name), buf);
+  audit(req.user.login, 'upload', 'img:' + name, 'ok', `${buf.length} байт`);
+  res.json({ url: '/img/uploads/' + name });
+});
+app.get('/api/admin/comments/summary', auth, need('comments.moderate'), (req, res) => {
+  res.json(db.prepare("SELECT COUNT(*) total, SUM(status='pending') pending, MAX(id) lastId FROM comments").get());
+});
 app.get('/api/admin/comments', auth, need('comments.moderate'), (req, res) => {
   const st = ['pending', 'published', 'rejected'].includes(req.query.status) ? req.query.status : null;
   res.json(db.prepare(`SELECT * FROM comments ${st ? 'WHERE status=?' : ''} ORDER BY CASE status WHEN 'pending' THEN 0 ELSE 1 END, id DESC LIMIT 300`).all(...(st ? [st] : [])));
@@ -629,6 +654,8 @@ const adminShell = readFileSync(join(root, 'public', 'admin.html'), 'utf8');
 const escH = (s = '') => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const SECTION = { sources: ['Источники изображений', 'Суреттер дереккөздері', 'Image sources'], persons: ['Личности', 'Тұлғалар', 'People'], '': ['Главная', 'Басты бет', 'Home'], about: ['Об архиве', 'Архив туралы', 'About'], catalog: ['Электронный каталог', 'Электрондық каталог', 'E-catalogue'], exhibitions: ['Онлайн-выставки', 'Онлайн-көрмелер', 'Online exhibitions'], memory: ['Большой архив памяти', 'Үлкен жад архиві', 'Memory archive'], news: ['Новости', 'Жаңалықтар', 'News'], branches: ['Филиалы и карта', 'Филиалдар', 'Branches'], services: ['Государственная услуга', 'Мемлекеттік қызмет', 'State service'], faq: ['Вопросы и ответы', 'Сұрақ-жауап', 'FAQ'] };
 
+const cabinetShell = readFileSync(join(root, 'public', 'cabinet.html'), 'utf8');
+app.get('/cabinet', (req, res) => { res.set('X-Robots-Tag', 'noindex, nofollow'); res.type('html').send(cabinetShell); });
 app.get('/admin*', (req, res) => { res.set('X-Robots-Tag', 'noindex, nofollow'); res.type('html').send(adminShell); });
 app.get(['/', '/:lang', '/:lang/*'], (req, res, next) => {
   if (req.path === '/') return res.redirect(302, '/ru/');

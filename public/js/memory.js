@@ -138,7 +138,7 @@ export async function branches() {
   return {
     title: t('nav.branches'), html,
     after(root) {
-      let type = 'all', q = '', sel = sel0, me = null, line = null;
+      let type = 'all', q = '', sel = sel0, me = null, line = null, alive = true;
       const map = baseMap(root.querySelector('#map'));
       if (!map) root.querySelector('#map').innerHTML = `<div class="map-fallback"><div>${icon('map')}<p>${esc({ ru: 'Карта недоступна. Воспользуйтесь списком и внешними ссылками на маршрут.', kz: 'Карта қолжетімсіз. Тізімді пайдаланыңыз.', en: 'Map unavailable. Use the list and external route links.' }[R])}</p></div></div>`;
       const markers = {};
@@ -157,6 +157,7 @@ export async function branches() {
         return `<div class="row" style="gap:6px"><a class="btn btn-sm btn-accent" href="${g}" target="_blank" rel="noopener">${icon('route')}Google Maps ↗</a><a class="btn btn-sm" href="${gis}" target="_blank" rel="noopener">2GIS ↗</a><a class="btn btn-sm" href="${osm}" target="_blank" rel="noopener">OSM ↗</a></div>`;
       };
       function select(slug, fly = true) {
+        if (!alive) return;
         sel = slug; const b = list.find((x) => x.slug === slug); if (!b) return;
         history.replaceState(null, '', L('branches?b=' + slug));
         drawList();
@@ -192,8 +193,8 @@ export async function branches() {
       root.querySelector('[data-bt]').onclick = (e) => { const b = e.target.closest('[data-type]'); if (!b) return; type = b.dataset.type; root.querySelectorAll('[data-type]').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', x === b); }); drawList(); };
       drawList();
       if (map) map.fitBounds(list.map((b) => [b.lat, b.lng]), { padding: [30, 30] });
-      if (sel) setTimeout(() => select(sel), 200);
-      return () => { if (map) { map.stop(); map.off(); map.remove(); } };
+      const tmr = sel ? setTimeout(() => alive && select(sel), 200) : null;
+      return () => { alive = false; clearTimeout(tmr); if (map) { map.stop(); map.off(); map.remove(); } };
     },
   };
 }

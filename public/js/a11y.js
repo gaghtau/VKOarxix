@@ -15,6 +15,8 @@ const TX = {
   sizes: [{ ru: 'Обычный', kz: 'Қалыпты', en: 'Normal' }, { ru: 'Крупный', kz: 'Ірі', en: 'Large' }, { ru: 'Очень крупный', kz: 'Өте ірі', en: 'Extra large' }],
   photos: { ru: 'Фото на отдельной странице', kz: 'Суреттер бөлек бетте', en: 'Photos on a separate page' },
   photosHint: { ru: 'Вместо мелких картинок — кнопка «Открыть фото». Фото открывается во весь экран с кнопкой «Назад».', kz: 'Кішкентай суреттердің орнына «Суретті ашу» батырмасы.', en: 'Small images become an “Open photo” button that opens the photo full-screen.' },
+  dark: { ru: 'Тёмная тема', kz: 'Қараңғы тақырып', en: 'Dark theme' },
+  darkHint: { ru: 'Светлый текст на тёмном фоне — удобно вечером', kz: 'Қараңғы фондағы ашық мәтін', en: 'Light text on a dark background' },
   contrast: { ru: 'Высокий контраст', kz: 'Жоғары контраст', en: 'High contrast' },
   contrastHint: { ru: 'Чёрный текст на белом, подчёркнутые ссылки, яркая рамка фокуса', kz: 'Ақ фонда қара мәтін, сілтемелердің асты сызылған', en: 'Black on white, underlined links, strong focus ring' },
   reading: { ru: 'Удобное чтение', kz: 'Ыңғайлы оқу', en: 'Easy reading' },
@@ -73,6 +75,7 @@ export function openPanel(btn) {
     </div></fieldset>
     <fieldset><legend class="sr-only">${esc(T(TX.photos))}</legend>
       <label class="switch"><span><b>${esc(T(TX.photos))}</b><small>${esc(T(TX.photosHint))}</small></span><input type="checkbox" data-k="imgmode" ${photoMode() ? 'checked' : ''}></label>
+      <label class="switch"><span><b>${esc(T(TX.dark))}</b><small>${esc(T(TX.darkHint))}</small></span><input type="checkbox" data-k="theme" ${root.dataset.theme === 'dark' ? 'checked' : ''}></label>
       <label class="switch"><span><b>${esc(T(TX.contrast))}</b><small>${esc(T(TX.contrastHint))}</small></span><input type="checkbox" data-k="contrast" ${root.dataset.contrast ? 'checked' : ''}></label>
       <label class="switch"><span><b>${esc(T(TX.reading))}</b><small>${esc(T(TX.readingHint))}</small></span><input type="checkbox" data-k="reading" ${root.dataset.reading ? 'checked' : ''}></label>
     </fieldset>
@@ -90,6 +93,7 @@ export function openPanel(btn) {
     const i = e.target;
     if (i.name === 'fs') { set('fs', i.value === 'md' ? null : i.value); if (i.value === 'xl' && get('imgmode') !== 'inline') panel.querySelector('[data-k="imgmode"]').checked = true; }
     if (i.dataset.k === 'imgmode') set('imgmode', i.checked ? 'page' : 'inline');
+    if (i.dataset.k === 'theme') { set('theme', i.checked ? 'dark' : 'light'); root.dataset.theme = i.checked ? 'dark' : 'light'; }
     if (i.dataset.k === 'contrast') set('contrast', i.checked ? 'high' : null);
     if (i.dataset.k === 'reading') set('reading', i.checked ? 'on' : null);
     if (i.dataset.k === 'ttsclick') set('ttsclick', i.checked ? 'on' : null);

@@ -1,0 +1,47 @@
+/* Кабинет редактора */
+.cab-login { min-height: 100vh; display: grid; place-items: center; padding: 16px; background: var(--bg-2); }
+.cab-login form { width: min(420px, 100%); background: var(--surface); border: 2px solid var(--ink); border-radius: var(--radius-lg); padding: 28px; display: grid; gap: 16px; animation: rise .35s ease-out both; }
+.cab-login h1 { font-size: 1.6rem; margin: 0; }
+.cab-login .input { min-height: 52px; font-size: 1.05rem; }
+.cab-login .err { color: var(--danger); font-weight: 600; min-height: 1.4em; margin: 0; }
+.cab-login.shake form { animation: shake .4s; }
+@keyframes shake { 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
+@keyframes rise { from { opacity: 0; transform: translateY(12px); } }
+
+.cab-top { position: sticky; top: 0; z-index: 30; background: #1F3D2B; color: #F3EBDB; }
+.cab-top .wrap { display: flex; align-items: center; gap: 12px; min-height: 64px; }
+.cab-top b { font-family: var(--serif); font-size: 1.1rem; }
+.cab-top .sp { flex: 1; }
+.cab-top a, .cab-top button.lnk { color: #F3EBDB; background: none; border: 1px solid rgba(232, 220, 196, .35); border-radius: 4px; padding: 8px 12px; font: inherit; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; gap: 6px; align-items: center; min-height: 40px; }
+.cab-top svg { width: 18px; height: 18px; }
+.bell { position: relative; }
+.bell .badge { position: absolute; top: -6px; right: -6px; min-width: 22px; height: 22px; border-radius: 11px; background: #8B5CF6; color: #fff; font-size: .75rem; font-weight: 700; display: grid; place-items: center; padding: 0 5px; }
+.bell.ring svg { animation: ring .8s ease-in-out 2; transform-origin: top center; }
+@keyframes ring { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(18deg); } 40% { transform: rotate(-14deg); } 60% { transform: rotate(8deg); } 80% { transform: rotate(-4deg); } }
+
+.cab-tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--line-2); margin: 24px 0 20px; overflow-x: auto; }
+.cab-tabs button { border: 0; background: none; padding: 12px 16px; font: inherit; font-weight: 700; color: var(--muted); border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap; display: inline-flex; gap: 8px; align-items: center; }
+.cab-tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+.cab-tabs .n { background: var(--ink); color: var(--bg); border-radius: 10px; padding: 0 7px; font-size: .78rem; }
+
+.cm-card { border: 1px solid var(--line-2); border-radius: var(--radius); background: var(--surface); padding: 16px 18px; margin-bottom: 12px; display: grid; gap: 8px; animation: rise .3s ease-out both; }
+.cm-card.pending { border-left: 4px solid #8B5CF6; }
+.cm-card.fresh { box-shadow: 0 0 0 3px rgba(139, 92, 246, .35); }
+.cm-card .who { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.cm-card .who .av { width: 36px; height: 36px; border-radius: 50%; background: var(--ink); color: var(--bg); display: grid; place-items: center; font-weight: 700; }
+.cm-card .to { font-size: .88rem; color: var(--muted); }
+.cm-card p { margin: 0; font-size: 1.02rem; }
+.cm-card .acts { display: flex; gap: 8px; flex-wrap: wrap; }
+.cm-card.removing { animation: out .25s ease-in forwards; }
+@keyframes out { to { opacity: 0; transform: translateX(30px); height: 0; padding: 0; margin: 0; } }
+.empty-state { text-align: center; padding: 48px 16px; color: var(--muted); }
+
+.add-form { display: grid; gap: 16px; max-width: 760px; }
+.add-form .input, .add-form select { min-height: 48px; }
+.photo-drop { border: 2px dashed var(--line-2); border-radius: var(--radius); padding: 18px; text-align: center; cursor: pointer; display: grid; gap: 8px; place-items: center; }
+.photo-drop:hover, .photo-drop.over { border-color: var(--ink); background: var(--surface-2); }
+.photo-drop img { max-height: 220px; border-radius: 4px; }
+.toast-stack { position: fixed; right: 16px; bottom: 16px; z-index: 100; display: grid; gap: 8px; }
+.toast-stack .t { background: #1F3D2B; color: #F3EBDB; padding: 12px 16px; border-radius: 6px; box-shadow: 0 10px 30px rgba(0, 0, 0, .25); max-width: 340px; animation: rise .25s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .cm-card, .cab-login form, .toast-stack .t, .bell.ring svg { animation: none !important; } }
+@media (max-width: 640px) { .cab-top .hide-xs { display: none; } }

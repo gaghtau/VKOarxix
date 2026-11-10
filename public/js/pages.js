@@ -2,7 +2,6 @@ import { S, t, tr, esc, L, api, store, docCard, pageHead, crumbs, fmtDate, fileU
 import { icon } from './icons.js';
 import { renderAnswer, ask } from './assistant.js';
 import { compareHtml, mountCompare } from './features.js';
-import { miniMap } from './memory.js';
 
 const X = (o) => o[S.lang] ?? o.ru; // локальные тексты страниц {ru,kz,en}
 const ext = (url, label) => `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(label)} ${icon('ext', 'sr-hide')}<span aria-hidden="true">↗</span></a>`;
@@ -28,110 +27,66 @@ export function upcoming(cal, n = 3) {
 
 // ---------------------------------------------------------------- Главная
 export async function home() {
-  const [digital, ex, news, cal] = await Promise.all([
+  const [digital, news, cal] = await Promise.all([
     api(`/api/catalog/search?digital=1&per=24&lang=${S.lang}`, { cache: true }),
-    api('/api/content/exhibition', { cache: true }), api('/api/content/news', { cache: true }), api('/api/calendar', { cache: true }),
+    api('/api/content/news', { cache: true }), api('/api/calendar', { cache: true }),
   ]);
-  const m = S.meta || {}; const counts = m.counts || {};
-  const photos = digital.items.filter((d) => d.doc_type === 'photo');
-  const heroA = M('uk-1891'), heroB = M('building');
-  const day = upcoming(cal, 1)[0];
-  const total = (counts.document || 0) + (counts.case || 0) + (counts.inventory || 0) + (counts.fund || 0);
-  const pollVoted = store.get('poll-voted', null);
-  const pollTotal = (m.poll || []).reduce((s, p) => s + p.votes, 0) || 1;
-  const pollHtml = (m.poll || []).map((p) => `<label class="fopt" style="display:grid;grid-template-columns:auto 1fr auto;gap:8px">${pollVoted ? '<span></span>' : `<input type="radio" name="poll" value="${p.option}">`}<span>${esc(t('poll.' + p.option))}</span><span class="n">${pollVoted ? Math.round((p.votes / pollTotal) * 100) + '%' : ''}</span>${pollVoted ? `<span></span><div class="poll-bar" style="grid-column:2/4"><i style="width:${(p.votes / pollTotal) * 100}%"></i></div>` : ''}</label>`).join('');
   const X = (o) => o[S.lang] ?? o.ru;
+  const m = S.meta || {};
+  const photos = digital.items.filter((d) => d.doc_type === 'photo');
+  const pick = ['Куленов', 'Волков', 'Аманжолов', 'Чистяков', 'Кырыкбаев', 'Белослюдов', 'Бердус', 'Горохов'];
+  const featured = pick.map((n) => photos.find((p) => p.title.ru.includes(n))).filter(Boolean).concat(photos).filter((v, i, a) => a.indexOf(v) === i).slice(0, 8);
+  const heroB = M('building');
+  const days = upcoming(cal, 4);
+  const lk = S.lang === 'kz' ? 'kz' : 'ru';
+  const help = [
+    ['catalog', X({ ru: 'Найти документ', kz: 'Құжат табу', en: 'Find a document' }), X({ ru: 'Поиск по фондам, описям и фото. Можно просто написать вопрос.', kz: 'Қорлар мен суреттер бойынша іздеу.', en: 'Search fonds, inventories and photos — or just ask.' })],
+    ['family', X({ ru: 'Найти родственника', kz: 'Туысқанды табу', en: 'Find a relative' }), X({ ru: 'Три вопроса — и памятка: куда обратиться и что взять с собой.', kz: 'Үш сұрақ — және жадынама.', en: 'Three questions — and a checklist.' })],
+    ['exhibitions', X({ ru: 'Посмотреть выставки', kz: 'Көрмелерді көру', en: 'See exhibitions' }), X({ ru: 'Люди края, путешественники XIX века, ГЭС на Иртыше.', kz: 'Өлке адамдары, саяхатшылар, СЭС.', en: 'People of the region, travellers, dams.' })],
+    ['branches', X({ ru: 'Прийти в архив', kz: 'Архивке келу', en: 'Visit the archive' }), X({ ru: 'Адреса, телефоны и маршрут до 14 зданий архива.', kz: '14 ғимараттың мекенжайлары.', en: 'Addresses and routes to 14 locations.' })],
+  ];
   const html = `
   <section class="cover" aria-labelledby="hero-title"><div class="wrap">
-    <div>
-      <p class="kicker"><span>${esc(t('orgShort'))}</span><span>${esc(X({ ru: 'с 1940 года', kz: '1940 жылдан', en: 'since 1940' }))}</span><span>${esc(X({ ru: 'Усть-Каменогорск, Бейбітшілік, 26/1', kz: 'Өскемен, Бейбітшілік, 26/1', en: '26/1 Beibitshilik St.' }))}</span></p>
-      <h1 id="hero-title">${t('hero.title')}</h1>
-      <p class="lead">${esc(t('hero.lead'))}</p>
-      <form class="bigsearch" role="search" data-home-search><label class="sr-only" for="home-q">${esc(t('hero.ph'))}</label>
-        <input id="home-q" type="search" placeholder="${esc(t('hero.ph'))}" autocomplete="off">
-        <button class="btn btn-accent">${icon('search')}${esc(t('hero.go'))}</button></form>
-      <p class="examples">${esc(X({ ru: 'Например:', kz: 'Мысалы:', en: 'For example:' }))} ${[X({ ru: 'Куленов', kz: 'Куленов', en: 'Kulenov' }), X({ ru: 'почётные граждане', kz: 'құрметті азаматтар', en: 'honorary citizens' }), 'Ф.1466', X({ ru: 'писатель', kz: 'жазушы', en: 'writer' })].map((e) => `<a href="${L('catalog?q=' + encodeURIComponent(e))}">${esc(e)}</a>`).join(' · ')}</p>
+    <div class="cover-text">
+      <p class="kicker"><span>${esc(t('orgShort'))}</span><span>${esc(X({ ru: 'с 1940 года', kz: '1940 жылдан', en: 'since 1940' }))}</span></p>
+      <h1 id="hero-title" class="lines">${t('hero.title')}</h1>
+      <p class="lead">${esc(X({ ru: 'Документы, фотографии и истории людей Восточного Казахстана. Напишите, что ищете, — архив подскажет.', kz: 'Шығыс Қазақстан адамдарының құжаттары мен суреттері. Не іздейтініңізді жазыңыз.', en: 'Documents, photographs and stories of East Kazakhstan. Type what you are looking for.' }))}</p>
+      <form class="drawer-front" role="search" data-home-search>
+        <span class="plate"><label for="home-q">${esc(X({ ru: 'Каталог', kz: 'Каталог', en: 'Catalogue' }))}</label><input id="home-q" type="search" placeholder="${esc(X({ ru: 'фамилия, город, год или вопрос', kz: 'тегі, қала, жыл немесе сұрақ', en: 'surname, town, year or a question' }))}" autocomplete="off"></span>
+        <button class="pull">${icon('search')}<span>${esc(t('hero.go'))}</span></button>
+      </form>
+      <p class="examples">${esc(X({ ru: 'Например:', kz: 'Мысалы:', en: 'For example:' }))} ${[X({ ru: 'Куленов', kz: 'Куленов', en: 'Kulenov' }), X({ ru: 'писатель', kz: 'жазушы', en: 'writer' }), 'Ф.1466'].map((e) => `<a href="${L('catalog?q=' + encodeURIComponent(e))}">${esc(e)}</a>`).join(' · ')}</p>
     </div>
-    ${heroB ? `<figure><img src="${heroB.url}" alt="${esc(heroB.title)}" width="${heroB.w}" height="${heroB.h}"><figcaption><span>${esc(heroB.title)}</span><span>${esc(X({ ru: 'Фото', kz: 'Сурет', en: 'Photo' }))}: e-arhiv.vko.gov.kz</span></figcaption></figure>` : ''}
-  </div>
-  <div class="wrap cover-foot"><div class="ledger">
-    <a href="${L('catalog?level=fund&kind=personal')}"><b>${(S.meta?.counts?.fund || 0)}</b><span>${esc(X({ ru: 'фондов в каталоге', kz: 'каталогтағы қор', en: 'fonds in the catalogue' }))}</span></a>
-    <a href="${L('catalog')}"><b>${total}</b><span>${esc(t('hero.statLabel'))}</span></a>
-    <a href="${L('catalog?digital=1')}"><b>${m.digital || 0}</b><span>${esc(X({ ru: 'фотографий онлайн', kz: 'онлайн фотосурет', en: 'photos online' }))}</span></a>
-    <a href="${L('branches')}"><b>${(m.branches || []).length}</b><span>${esc(X({ ru: 'подразделений на карте', kz: 'картадағы бөлімше', en: 'locations on the map' }))}</span></a>
-    ${day ? `<a class="day" href="${L('calendar')}"><b>${esc(day.date[S.lang === 'kz' ? 'kz' : 'ru'])}</b><span>${esc(day.text[S.lang === 'kz' ? 'kz' : 'ru'].slice(0, 90))}${day.text.ru.length > 90 ? '…' : ''}</span></a>` : ''}
-  </div>
-  <nav class="index-list" aria-label="${esc(X({ ru: 'Быстрый переход', kz: 'Жылдам өту', en: 'Quick links' }))}">
-    ${[['01', 'family', X({ ru: 'Найти документы о родственнике', kz: 'Туысқан туралы құжаттар', en: 'Find records about a relative' }), X({ ru: 'Пошаговая памятка', kz: 'Қадамдық жадынама', en: 'Step-by-step checklist' })], ['02', 'services', t('quick.cert')[0], t('quick.cert')[1]], ['03', 'branches', t('quick.branches')[0], t('quick.branches')[1]], ['04', 'exhibitions', t('hero.exhibitions'), X({ ru: '4 выставки, реальные фото', kz: '4 көрме', en: '4 exhibitions' })]].map(([n, h, b1, s1]) => `<a href="${L(h)}"><span class="n">${n}</span><b>${esc(b1)}</b><span>${esc(s1)}</span></a>`).join('')}
-  </nav></div>
-  </section>
-
-  <section class="section" aria-labelledby="cat-h"><div class="wrap">
-    <div class="grid g2" style="align-items:center;gap:40px">
-      <div><span class="sec-no">02 — ${esc(t('nav.catalog'))}</span><h2 id="cat-h">${esc(t('home.catalogTitle'))}</h2><p class="muted">${esc(t('home.catalogLead'))}</p>
-        <form class="searchbar" data-home-search style="margin:18px 0 12px"><div class="sb">${icon('search')}<input class="input" type="search" placeholder="${esc(t('cat.ph'))}" aria-label="${esc(t('cat.ph'))}"></div><button class="btn btn-accent">${esc(t('cat.search'))}</button></form>
-        <div class="row"><a class="chip" href="${L('catalog?type=photo')}">${icon('image', 'sr-hide')}${esc(t('types.photo'))}</a><a class="chip" href="${L('catalog?type=map')}">${esc(t('types.map'))}</a><a class="chip" href="${L('catalog?level=fund&kind=personal')}">${esc(t('cat.personalFunds'))}</a><a class="chip" href="${L('catalog?topic=' + encodeURIComponent('ВОВ'))}">1941–1945</a><a class="chip" href="${L('catalog?digital=1')}">${esc(t('cat.digital'))}</a><a href="${L('catalog#advanced')}" class="chip">${icon('filter', 'sr-hide')}${esc(t('home.advanced'))}</a></div>
-      </div>
-      <div class="grid g2">
-        ${[['fund', 'landmark'], ['inventory', 'list'], ['case', 'folder'], ['document', 'file']].map(([k, ic]) => `<a class="card card-link" href="${L('catalog?level=' + k)}"><div class="row" style="justify-content:space-between"><span class="stat-num">${counts[k] || 0}</span>${icon(ic)}</div><div class="muted" style="margin-top:6px">${esc(t('cat.level.' + k))}</div></a>`).join('').replace(/<svg /g, '<svg style="width:26px;height:26px;opacity:.5" ')}
-      </div>
-    </div>
+    ${heroB ? `<figure class="print"><img src="${heroB.url}" alt="${esc(heroB.title)}" width="${heroB.w}" height="${heroB.h}"><span class="stamp" aria-hidden="true"><b>ГОСАРХИВ</b>ВКО<i>1940</i></span><figcaption>${esc(heroB.title)}</figcaption></figure>` : ''}
   </div></section>
 
-  <section class="section section-alt" aria-labelledby="hist-h"><div class="wrap">
-    <div class="section-head"><div><span class="sec-no">03 — ${esc(t('nav.history'))}</span><h2 id="hist-h">${esc(t('home.historyTitle'))}</h2><p>${esc(t('home.historyLead'))}</p></div><a class="btn" href="${L('catalog?digital=1')}">${esc(t('home.all'))}${icon('arrow')}</a></div>
-    <div class="grid g4">${photos.slice(0, 8).map((d) => `<a class="tile" href="${L('catalog/' + d.id)}"><div class="img"><img src="${fileUrl(d.id, 1, true)}" alt="${esc(tr(d.title))}" loading="lazy"></div><div class="body"><span class="cipher" style="justify-self:start">${esc(d.cipher)}</span><h3 style="font-family:var(--font);font-size:1rem">${esc(tr(d.title))}${trBadge(d.title)}</h3><span class="small muted">${esc(t('kinds.personal'))}</span></div></a>`).join('')}</div>
+  <section class="section" aria-labelledby="help-h"><div class="wrap">
+    <h2 class="tab-title" id="help-h"><span>${esc(X({ ru: 'Чем можем помочь', kz: 'Қалай көмектесе аламыз', en: 'How can we help' }))}</span></h2>
+    <div class="icards">${help.map(([href, h, d], i) => `<a class="icard reveal" style="--d:${i}" href="${L(href)}"><span class="no">№ ${i + 1}</span><b>${esc(h)}</b><span>${esc(d)}</span><span class="go" aria-hidden="true">→</span></a>`).join('')}</div>
   </div></section>
 
-  <section class="section" aria-labelledby="ex-h"><div class="wrap">
-    <div class="section-head"><div><span class="sec-no">04 — ${esc(t('nav.exhibitions'))}</span><h2 id="ex-h">${esc(t('home.exTitle'))}</h2><p>${esc(t('home.exLead'))}</p></div><a class="btn" href="${L('exhibitions')}">${esc(t('home.all'))}${icon('arrow')}</a></div>
-    <div class="grid g3">${ex.map(exTile).join('')}</div>
+  <section class="section section-alt" aria-labelledby="pf-h"><div class="wrap">
+    <div class="tab-row"><h2 class="tab-title" id="pf-h"><span>${esc(X({ ru: 'Из личных фондов', kz: 'Жеке қорлардан', en: 'From personal fonds' }))}</span></h2><a class="more" href="${L('memory')}">${esc(X({ ru: 'Все люди и коллекции', kz: 'Барлық тұлғалар', en: 'All people' }))} →</a></div>
+    <div class="pdrawer">${featured.map((d, i) => `<a class="pcard reveal" style="--d:${i};--r:${[-2, 1.5, -1, 2, -1.5, 1, -2.5, 1.2][i % 8]}deg" href="${L('catalog/' + d.id)}"><img src="${fileUrl(d.id, 1, true)}" alt="${esc(tr(d.title).replace(/^[^:]+:\s*/, ''))}" loading="lazy"><b>${esc(tr(d.title).replace(/^[^:]+:\s*/, ''))}</b><span class="mono">${esc(d.cipher)}</span></a>`).join('')}</div>
   </div></section>
 
-  <section class="section" aria-labelledby="tn-h"><div class="wrap">
-    <div class="section-head"><div><span class="sec-no">${esc(X({ ru: 'Тогда и сейчас', kz: 'Сол кезде және қазір', en: 'Then and now' }))}</span><h2 id="tn-h">${esc(X({ ru: 'Усть-Каменогорск: 1891 и сегодня', kz: 'Өскемен: 1891 және бүгін', en: 'Ust-Kamenogorsk: 1891 and today' }))}</h2><p>${esc(X({ ru: 'Сдвиньте шторку, чтобы сравнить.', kz: 'Салыстыру үшін жылжытыңыз.', en: 'Drag the slider to compare.' }))}</p></div><a class="btn" href="${L('then-and-now')}">${esc(t('home.all'))}${icon('arrow')}</a></div>
+  <section class="section reveal" aria-labelledby="tn-h"><div class="wrap">
+    <div class="tab-row"><h2 class="tab-title" id="tn-h"><span>${esc(X({ ru: 'Тогда и сейчас', kz: 'Сол кезде және қазір', en: 'Then and now' }))}</span></h2><a class="more" href="${L('then-and-now')}">${esc(t('home.all'))} →</a></div>
+    <p class="muted" style="margin-top:-6px">${esc(X({ ru: 'Усть-Каменогорск в 1891 году и сегодня. Сдвиньте шторку.', kz: 'Өскемен 1891 жылы және бүгін. Жылжытыңыз.', en: 'Ust-Kamenogorsk in 1891 and today. Drag the slider.' }))}</p>
     ${compareHtml('uk-1891', 'uk-irtysh', '1891', X({ ru: 'сегодня', kz: 'бүгін', en: 'today' }))}
   </div></section>
 
-  <section class="section section-alt" aria-labelledby="br-h"><div class="wrap">
-    <div class="section-head"><div><span class="sec-no">05 — ${esc(t('nav.branches'))}</span><h2 id="br-h">${esc(t('home.brTitle'))}</h2><p>${esc(t('home.brLead'))}</p></div><a class="btn btn-brand" href="${L('branches')}">${icon('route')}${esc({ ru: 'Карта и маршруты', kz: 'Карта және бағыттар', en: 'Map & routes' }[S.lang])}</a></div>
-    <div class="grid" style="grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:20px" data-br-grid>
-      <div class="card" style="padding:0;overflow:hidden;min-height:380px"><div id="mini-map" class="map" style="min-height:380px"></div></div>
-      <div class="card" style="padding:8px 0;max-height:420px;overflow:auto">${(m.branches || []).map((b) => `<a href="${L('branches?b=' + b.slug)}" class="bitem" style="display:block;text-decoration:none"><b>${esc(tr(b.name))}</b><span>${esc(b.address)} · ${esc(b.phone)}</span></a>`).join('')}</div>
-    </div>
-  </div></section>
-
-  <section class="section" aria-labelledby="news-h"><div class="wrap">
-    <div class="section-head"><div><span class="sec-no">06 — ${esc(t('nav.news'))}</span><h2 id="news-h">${esc(t('home.newsTitle'))}</h2></div><a class="btn" href="${L('news')}">${esc(t('home.all'))}${icon('arrow')}</a></div>
-    <div class="grid g3">${news.slice(0, 3).map(newsCard).join('')}</div>
-  </div></section>
-
-  <section class="section section-alt"><div class="wrap grid g3" style="align-items:start">
-    <div class="card"><h2 style="font-size:1.35rem">${esc(t('home.usefulTitle'))}</h2><ul style="padding:0;margin:0;list-style:none;display:grid;gap:4px">${t('useful').map(([l, h]) => `<li><a class="row" style="gap:8px;padding:7px 0;text-decoration:none;color:var(--text)" href="${L(h)}">${icon('right', 'ul-ic')}<span>${esc(l)}</span></a></li>`).join('')}</ul></div>
-    <div class="card"><h2 style="font-size:1.35rem">${esc(t('home.calTitle'))}</h2>${upcoming(cal, 4).map((d) => `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><div class="small" style="color:var(--accent-ink);font-weight:700">${esc(d.date[S.lang === 'kz' ? 'kz' : 'ru'])}</div><div class="small">${esc(d.text[S.lang === 'kz' ? 'kz' : 'ru'])}</div></div>`).join('')}<a class="btn btn-sm" style="margin-top:14px" href="${L('calendar')}">${esc(t('home.all'))}</a></div>
-    <div class="card"><h2 style="font-size:1.35rem">${esc(t('home.pollTitle'))}</h2><p class="small muted">${esc(t('home.pollQ'))}</p><form data-poll>${pollHtml}${pollVoted ? `<p class="small" style="margin-top:10px">${esc(t('home.voted'))}</p>` : `<button class="btn btn-sm btn-brand" style="margin-top:12px">${esc(t('home.vote'))}</button>`}</form>
-      <hr style="border:0;border-top:1px solid var(--line);margin:18px 0"><h3 style="font-family:var(--font);font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)">${esc(t('home.statsTitle'))}</h3>
-      <div class="row" style="gap:28px"><div><div class="stat-num" style="font-size:1.7rem">${(m.stats?.views || 0).toLocaleString('ru-RU')}</div><span class="small muted">${esc(t('home.views'))}</span></div><div><div class="stat-num" style="font-size:1.7rem">${(m.stats?.visitors || 0).toLocaleString('ru-RU')}</div><span class="small muted">${esc(t('home.visitors'))}</span></div></div>
-      <p class="small muted" style="margin-top:8px">${esc({ ru: 'Обезличенные агрегированные показатели.', kz: 'Жинақталған көрсеткіштер.', en: 'Anonymous aggregate figures.' }[S.lang])}</p></div>
-  </div></section>
-
-  <section class="section"><div class="wrap"><div class="card" style="display:flex;gap:24px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--green);color:#EFE6D2;border:0">
-    <div><h2 style="color:#F5EEDF;margin:0">${esc(t('home.socialTitle'))}</h2><p style="margin:6px 0 0;color:#D8CCB4">${esc(t('home.socialLead'))}</p></div>
-    <div class="row">${(m.org?.social || []).map((s) => `<a class="btn" style="background:transparent;color:#EFE6D2;border-color:rgba(232,220,196,.35)" href="${esc(s.url)}" target="_blank" rel="noopener">${icon(s.id)}${esc(s.label)}</a>`).join('')}</div>
-    <p class="small" style="width:100%;margin:0;color:#B9AE97">${esc({ ru: 'Лента публикаций будет подключена при наличии официального API платформы; сейчас — прямые ссылки на аккаунты.', kz: 'Жарияланымдар таспасы платформаның ресми API болған кезде қосылады.', en: 'A post feed will be connected when an official platform API is available.' }[S.lang])}</p>
-  </div></div></section>`;
+  <section class="section section-alt"><div class="wrap two-col">
+    <div class="reveal"><div class="tab-row"><h2 class="tab-title"><span>${esc(t('nav.news'))}</span></h2><a class="more" href="${L('news')}">${esc(t('home.all'))} →</a></div>
+      <ul class="ledger-list">${news.slice(0, 4).map((n) => `<li><a href="${L('news/' + n.slug)}"><time class="mono">${esc(fmtDate(n.date))}</time><b>${esc(tr(n.title))}</b></a></li>`).join('')}</ul></div>
+    <div class="reveal" style="--d:1"><div class="tab-row"><h2 class="tab-title"><span>${esc(t('home.calTitle'))}</span></h2><a class="more" href="${L('calendar')}">${esc(t('home.all'))} →</a></div>
+      <ul class="ledger-list">${days.map((d) => `<li><span><time class="mono">${esc(d.date[lk])}</time><span>${esc(d.text[lk])}</span></span></li>`).join('')}</ul></div>
+  </div></section>`;
   return {
     title: '', html,
     after(root) {
       root.querySelectorAll('[data-home-search]').forEach((f) => f.addEventListener('submit', (e) => { e.preventDefault(); const q = f.querySelector('input').value.trim(); S.navigate(L('catalog') + (q ? '?q=' + encodeURIComponent(q) : '')); }));
-      root.querySelector('[data-open-assist]')?.addEventListener('click', (e) => { e.preventDefault(); S.openAssistant?.(); });
-      root.querySelector('[data-poll]')?.addEventListener('submit', async (e) => {
-        e.preventDefault(); const v = e.target.querySelector('input:checked')?.value; if (!v) return toast('—');
-        try { const r = await api('/api/poll', { method: 'POST', body: { option: v } }); S.meta.poll = r.poll; store.set('poll-voted', v); toast(t('home.voted')); S.navigate(location.pathname, { replace: true, scroll: false }); } catch (err) { toast(err.message); }
-      });
-      const mq = matchMedia('(max-width: 1000px)'); const g = root.querySelector('[data-br-grid]'); if (mq.matches && g) g.style.gridTemplateColumns = '1fr';
       mountCompare(root);
-      return miniMap(root.querySelector('#mini-map'), S.meta?.branches || []);
     },
   };
 }
@@ -306,6 +261,10 @@ export async function faq() {
 }
 
 // ---------------------------------------------------------------- Отзывы (разрешено ТЗ), символы, ссылки
+function pollHtml() {
+  const m = S.meta || {}; const voted = store.get('poll-voted', null); const total = (m.poll || []).reduce((a, p) => a + p.votes, 0) || 1;
+  return (m.poll || []).map((p) => `<label class="fopt" style="display:grid;grid-template-columns:auto 1fr auto;gap:8px">${voted ? '<span></span>' : `<input type="radio" name="poll" value="${p.option}">`}<span>${esc(t('poll.' + p.option))}</span><span class="n">${voted ? Math.round((p.votes / total) * 100) + '%' : ''}</span>${voted ? `<span></span><div class="poll-bar" style="grid-column:2/4"><i style="width:${(p.votes / total) * 100}%"></i></div>` : ''}</label>`).join('') + (voted ? `<p class="small" style="margin-top:10px">${esc(t('home.voted'))}</p>` : `<button class="btn btn-sm btn-brand" style="margin-top:12px">${esc(t('home.vote'))}</button>`);
+}
 export function feedback() {
   const R = S.lang;
   const html = `<div class="wrap section" style="padding-top:32px;max-width:760px">
@@ -315,10 +274,15 @@ export function feedback() {
     <div class="field"><label for="fb-text">${esc({ ru: 'Сообщение', kz: 'Хабарлама', en: 'Message' }[R])} *</label><textarea id="fb-text" class="input" name="text" minlength="10" maxlength="2000" required aria-describedby="fb-hint"></textarea><span id="fb-hint" class="small muted">${esc({ ru: 'От 10 до 2000 символов. Не указывайте персональные данные.', kz: '10–2000 таңба. Дербес деректерді көрсетпеңіз.', en: '10–2000 characters. Do not include personal data.' }[R])}</span></div>
     <input type="text" name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
     <div class="row"><button class="btn btn-accent">${icon('send')}${esc({ ru: 'Отправить отзыв', kz: 'Пікір жіберу', en: 'Send feedback' }[R])}</button><span data-fb-status role="status" class="small"></span></div>
-  </form></div>`;
+  </form>
+  <section class="card" style="margin-top:28px" aria-labelledby="poll-h"><h2 id="poll-h" style="font-size:1.3rem">${esc(t('home.pollTitle'))}</h2><p class="muted">${esc(t('home.pollQ'))}</p><form data-poll>${pollHtml()}</form></section></div>`;
   return {
     title: t('menu.feedback')[0], html: pageHead(esc(t('menu.feedback')[0]), esc(t('menu.feedback')[1]), [[t('nav.about'), L('about')], [t('menu.feedback')[0]]]) + html,
     after(root) {
+      root.querySelector('[data-poll]').onsubmit = async (e) => {
+        e.preventDefault(); const v = e.target.querySelector('input:checked')?.value; if (!v) return;
+        try { const r = await api('/api/poll', { method: 'POST', body: { option: v } }); S.meta.poll = r.poll; store.set('poll-voted', v); toast(t('home.voted')); e.target.innerHTML = pollHtml(); } catch (err) { toast(err.message); }
+      };
       root.querySelector('[data-fb]').onsubmit = async (e) => {
         e.preventDefault(); const f = e.target; const st = root.querySelector('[data-fb-status]');
         if (f.text.value.trim().length < 10) { st.textContent = '⚠ ' + ({ ru: 'Слишком короткое сообщение', kz: 'Хабарлама тым қысқа', en: 'Message too short' }[S.lang]); f.text.focus(); return; }

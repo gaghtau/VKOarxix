@@ -2,9 +2,9 @@
 export const DICT = {
   ru: {
     skip: 'Перейти к содержанию', orgShort: 'Госархив ВКО', orgSub: 'Государственный архив Восточно-Казахстанской области',
-    nav: { about: 'Об архиве', catalog: 'Каталог', info: 'Посетителям', history: 'История региона', exhibitions: 'Выставки', news: 'Новости', branches: 'Филиалы' },
+    nav: { about: 'Об архиве', catalog: 'Каталог', info: 'Посетителям', history: 'История края', exhibitions: 'Выставки', news: 'Новости', branches: 'Филиалы' },
     menu: {
-      family: ['Найти документы о родственнике', 'Пошаговая памятка'], thennow: ['Тогда и сейчас', 'Сравнение видов'], guide: ['Справочная информация', 'Как пользоваться сайтом и каталогом'], services: ['Государственная услуга', 'Правила и порядок получения'], paid: ['Платные услуги', 'Постановление и прейскурант'],
+      family: ['Найти документы о родственнике', 'Пошаговая памятка'], branches: ['Филиалы и как добраться', 'Адреса, карта, маршруты'], news: ['Новости', 'События архива'], thennow: ['Тогда и сейчас', 'Сравнение видов'], guide: ['Справочная информация', 'Как пользоваться сайтом и каталогом'], services: ['Государственная услуга', 'Правила и порядок получения'], paid: ['Платные услуги', 'Постановление и прейскурант'],
       reading: ['Читальный зал', 'Правила работы'], laws: ['Нормативные акты', 'Законы и приказы, ИПС «Әділет»'], anticorruption: ['Антикоррупция', 'Комплаенс-служба'], faq: ['Вопросы и ответы', 'Сгруппированы по темам'],
       memory: ['Большой архив памяти', 'Коллекции, личности, хронология'], timeline: ['Хронология', 'События по годам'], calendar: ['Календарь памятных дат', '2026 год'], publications: ['Публикации и фотогалерея', 'Сборники, публицистика'], histmap: ['Историческая карта', 'Места из документов'],
       aboutHistory: ['История архива', 'С 1940 года'], structure: ['Структура и руководство', 'Отделы и контакты'], contacts: ['Контакты', 'Адрес, телефоны, режим'], symbols: ['Государственные символы', 'Флаг, герб, гимн'], links: ['Полезные ссылки', 'Госресурсы и конвертер'], feedback: ['Отзывы и предложения', 'Напишите нам'],
@@ -33,7 +33,7 @@ export const DICT = {
     skip: 'Мазмұнға өту', orgShort: 'ШҚО мемархиві', orgSub: 'Шығыс Қазақстан облысының мемлекеттік архиві',
     nav: { about: 'Архив туралы', catalog: 'Каталог', info: 'Келушілерге', history: 'Өңір тарихы', exhibitions: 'Көрмелер', news: 'Жаңалықтар', branches: 'Филиалдар' },
     menu: {
-      family: ['Туысқан туралы құжаттар', 'Қадамдық жадынама'], thennow: ['Сол кезде және қазір', 'Көріністерді салыстыру'], guide: ['Анықтамалық ақпарат', 'Сайт пен каталогты пайдалану'], services: ['Мемлекеттік қызмет', 'Ережелер мен тәртіп'], paid: ['Ақылы қызметтер', 'Қаулы және прейскурант'],
+      family: ['Туысқан туралы құжаттар', 'Қадамдық жадынама'], branches: ['Филиалдар және жол', 'Мекенжайлар, карта'], news: ['Жаңалықтар', 'Архив оқиғалары'], thennow: ['Сол кезде және қазір', 'Көріністерді салыстыру'], guide: ['Анықтамалық ақпарат', 'Сайт пен каталогты пайдалану'], services: ['Мемлекеттік қызмет', 'Ережелер мен тәртіп'], paid: ['Ақылы қызметтер', 'Қаулы және прейскурант'],
       reading: ['Оқу залы', 'Жұмыс ережелері'], laws: ['Нормативтік актілер', 'Заңдар, «Әділет» АҚЖ'], anticorruption: ['Сыбайлас жемқорлыққа қарсы', 'Комплаенс қызметі'], faq: ['Сұрақ-жауап', 'Тақырыптар бойынша'],
       memory: ['Үлкен жад архиві', 'Жинақтар, тұлғалар, хронология'], timeline: ['Хронология', 'Жылдар бойынша оқиғалар'], calendar: ['Атаулы күндер күнтізбесі', '2026 жыл'], publications: ['Басылымдар және фотогалерея', 'Жинақтар, публицистика'], histmap: ['Тарихи карта', 'Құжаттардағы орындар'],
       aboutHistory: ['Архив тарихы', '1940 жылдан'], structure: ['Құрылым және басшылық', 'Бөлімдер мен байланыс'], contacts: ['Байланыс', 'Мекенжай, телефондар'], symbols: ['Мемлекеттік рәміздер', 'Ту, елтаңба, әнұран'], links: ['Пайдалы сілтемелер', 'Мемлекеттік ресурстар'], feedback: ['Пікірлер мен ұсыныстар', 'Бізге жазыңыз'],
@@ -62,7 +62,7 @@ export const DICT = {
     skip: 'Skip to content', orgShort: 'EKR State Archive', orgSub: 'State Archive of East Kazakhstan Region',
     nav: { about: 'About', catalog: 'Catalogue', info: 'Visitors', history: 'Regional history', exhibitions: 'Exhibitions', news: 'News', branches: 'Branches' },
     menu: {
-      family: ['Find records about a relative', 'Step-by-step checklist'], thennow: ['Then and now', 'Compare views'], guide: ['Visitor guide', 'Using the site and catalogue'], services: ['State service', 'Rules and procedure'], paid: ['Paid services', 'Decree and price list'],
+      family: ['Find records about a relative', 'Step-by-step checklist'], branches: ['Branches & directions', 'Addresses, map, routes'], news: ['News', 'Archive events'], thennow: ['Then and now', 'Compare views'], guide: ['Visitor guide', 'Using the site and catalogue'], services: ['State service', 'Rules and procedure'], paid: ['Paid services', 'Decree and price list'],
       reading: ['Reading room', 'Rules'], laws: ['Legislation', 'Laws and orders, Adilet'], anticorruption: ['Anti-corruption', 'Compliance service'], faq: ['FAQ', 'Grouped by topic'],
       memory: ['Memory archive', 'Collections, people, timeline'], timeline: ['Timeline', 'Events by year'], calendar: ['Memorable dates', '2026'], publications: ['Publications & photos', 'Collections, articles'], histmap: ['Historical map', 'Places in documents'],
       aboutHistory: ['History of the archive', 'Since 1940'], structure: ['Structure & management', 'Departments and contacts'], contacts: ['Contacts', 'Address, phones, hours'], symbols: ['State symbols', 'Flag, emblem, anthem'], links: ['Useful links', 'Government resources'], feedback: ['Feedback', 'Write to us'],

@@ -23,7 +23,7 @@ const ROUTES = [
   [/^exhibitions$/, M.exhibitions, 'exhibitions'], [/^exhibitions\/([\w-]+)$/, M.exhibition, 'exhibitions'],
   [/^branches$/, M.branches, 'branches'], [/^assistant$/, P.assistantPage, 'assistant'], [/^sources$/, P.sources, 'about'], [/^photo$/, photoPage, 'photo'], [/^family$/, F.family, 'family'], [/^then-and-now$/, F.thenNow, 'memory'],
 ];
-const NAV_ACTIVE = { about: 'about', catalog: 'catalog', guide: 'info', services: 'info', faq: 'info', memory: 'history', exhibitions: 'exhibitions', news: 'news', branches: 'branches' };
+const NAV_ACTIVE = { about: 'about', catalog: 'catalog', guide: 'info', services: 'info', faq: 'info', family: 'info', branches: 'info', memory: 'history', exhibitions: 'exhibitions', news: 'about', feedback: 'about' };
 
 function parseLoc() {
   const parts = location.pathname.split('/').filter(Boolean);
@@ -57,6 +57,7 @@ async function render({ scroll = true } = {}) {
   document.querySelectorAll('.lang a').forEach((a) => { a.href = `/${a.dataset.l}/${rest}${location.search}${location.hash}`; });
   cleanup = out.after?.(app) || null;
   applyImageMode(app);
+  observeReveal(app);
   if (scroll) { if (location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView(); else window.scrollTo(0, 0); }
   if (!out.keepFocus) app.focus({ preventScroll: true });
   hit(section);
@@ -88,47 +89,43 @@ document.addEventListener('click', (e) => {
 
 // ---------------------------------------------------------------- Шапка, меню, подвал
 const MENUS = {
-  about: [['aboutHistory', 'about'], ['structure', 'about/structure'], ['contacts', 'contacts'], ['symbols', 'symbols'], ['links', 'links'], ['feedback', 'feedback']],
-  info: [['family', 'family'], ['guide', 'guide'], ['services', 'services'], ['paid', 'services/paid'], ['reading', 'reading-room'], ['laws', 'laws'], ['anticorruption', 'anticorruption'], ['faq', 'faq']],
   history: [['memory', 'memory'], ['thennow', 'then-and-now'], ['timeline', 'memory/timeline'], ['histmap', 'memory/map'], ['calendar', 'calendar'], ['publications', 'publications']],
+  info: [['family', 'family'], ['branches', 'branches'], ['services', 'services'], ['reading', 'reading-room'], ['faq', 'faq'], ['guide', 'guide'], ['paid', 'services/paid'], ['laws', 'laws'], ['anticorruption', 'anticorruption']],
+  about: [['aboutHistory', 'about'], ['news', 'news'], ['contacts', 'contacts'], ['structure', 'about/structure'], ['feedback', 'feedback'], ['symbols', 'symbols'], ['links', 'links']],
 };
 const dd = (key) => `<div class="dropdown" role="menu">${MENUS[key].map(([k, href]) => `<a role="menuitem" href="${L(href)}">${esc(t('menu.' + k)[0])}<small>${esc(t('menu.' + k)[1])}</small></a>`).join('')}</div>`;
 const navItem = (key, href) => (MENUS[key] && !href
   ? `<li><button data-nav="${key}" aria-expanded="false" aria-haspopup="true">${esc(t('nav.' + key))}${icon('chev')}</button>${dd(key)}</li>`
   : `<li><a data-nav="${key}" href="${L(href)}">${esc(t('nav.' + key))}</a></li>`);
+const loginLabel = () => ({ ru: 'Войти', kz: 'Кіру', en: 'Sign in' }[S.lang]);
 
 function chrome() {
   const m = S.meta?.org;
-  const theme = document.documentElement.dataset.theme;
   document.querySelector('.skip').textContent = t('skip');
+  const langs = `<div class="lang" role="group" aria-label="${esc(t('lang'))}">${LANGS.map((l) => `<a data-l="${l}" href="/${l}/" hreflang="${l === 'kz' ? 'kk' : l}" aria-current="${l === S.lang}" lang="${l === 'kz' ? 'kk' : l}">${l.toUpperCase()}</a>`).join('')}</div>`;
   document.getElementById('chrome-top').innerHTML = `
   <div class="topbar"><div class="wrap">
     <span class="ti">${icon('phone')}<a href="tel:+77232255976">${esc(m?.phoneReception || '8 (7232) 25-59-76')}</a></span>
-    <span class="ti hide-xs">${icon('clock')}${esc(tr(m?.hours) || '')}</span>
-    <span class="ti hide-xs">${icon('mail')}<a href="mailto:${esc(m?.email || '')}">${esc(m?.email || '')}</a></span>
     <span class="sep"></span>
-    <span class="ti hide-xs" id="weather" aria-live="polite"></span>
-    <button type="button" class="a11y-btn" data-a11y-open aria-haspopup="dialog" aria-expanded="false">${icon('eye')}<span>${esc({ ru: 'Доступность', kz: 'Қолжетімділік', en: 'Accessibility' }[S.lang])}</span></button>
-    ${(m?.social || []).map((s) => `<a class="ti" href="${esc(s.url)}" target="_blank" rel="noopener" aria-label="${esc(s.label)}">${icon(s.id)}</a>`).join('')}
+    <button type="button" class="a11y-btn" data-a11y-open aria-haspopup="dialog" aria-expanded="false">${icon('eye')}<span>${esc({ ru: 'Для слабовидящих', kz: 'Нашар көретіндерге', en: 'Accessibility' }[S.lang])}</span></button>
+    ${langs}
   </div></div>
   <header class="header"><div class="wrap">
     <a class="logo" href="${L('')}" aria-label="${esc(t('orgSub'))}"><span class="logo-mark">${logoMark}</span><span class="logo-text"><b>${esc(t('orgShort'))}</b><span>${esc(t('orgSub'))}</span></span></a>
-    <nav aria-label="Main"><ul class="nav">${navItem('about')}${navItem('catalog', 'catalog')}${navItem('info')}${navItem('history')}${navItem('exhibitions', 'exhibitions')}${navItem('news', 'news')}${navItem('branches', 'branches')}</ul></nav>
+    <nav aria-label="Main"><ul class="nav">${navItem('catalog', 'catalog')}${navItem('history')}${navItem('exhibitions', 'exhibitions')}${navItem('info')}${navItem('about')}</ul></nav>
     <div class="hdr-tools">
-      <form class="hsearch" role="search" data-hsearch><label class="sr-only" for="hs">${esc(t('searchPh'))}</label>${icon('search')}<input id="hs" class="input" type="search" placeholder="${esc(t('searchPh'))}" autocomplete="off"></form>
-      <a class="btn btn-accent hide-sm" href="${L('catalog')}" style="min-height:42px">${icon('archive')}<span>${esc(t('toCatalog'))}</span></a>
-      <div class="lang" role="group" aria-label="${esc(t('lang'))}">${LANGS.map((l) => `<a data-l="${l}" href="/${l}/" hreflang="${l === 'kz' ? 'kk' : l}" aria-current="${l === S.lang}" lang="${l === 'kz' ? 'kk' : l}">${l.toUpperCase()}</a>`).join('')}</div>
-      <button class="icon-btn" type="button" data-theme-toggle aria-label="${esc(theme === 'dark' ? t('themeLight') : t('themeDark'))}" title="${esc(t('theme'))}">${icon(theme === 'dark' ? 'sun' : 'moon')}</button>
+      <a class="icon-btn" href="${L('catalog')}" aria-label="${esc(t('searchPh'))}" title="${esc(t('searchPh'))}">${icon('search')}</a>
+      <a class="btn btn-sm login-btn" href="/cabinet" target="_blank" rel="noopener" title="${esc({ ru: 'Кабинет редактора', kz: 'Редактор кабинеті', en: 'Editor workspace' }[S.lang])}">${icon('user')}<span>${esc(loginLabel())}</span></a>
       <button class="icon-btn burger" type="button" data-burger aria-label="${esc(t('openMenu'))}" aria-expanded="false" aria-controls="drawer">${icon('menu')}</button>
     </div>
   </div></header>
   <div class="drawer" id="drawer"><div class="scrim" data-close-drawer></div><div class="panel" role="dialog" aria-modal="true" aria-label="Menu">
     <div class="row" style="justify-content:space-between"><b>${esc(t('orgShort'))}</b><button class="icon-btn" data-close-drawer aria-label="${esc(t('close'))}">${icon('x')}</button></div>
     <form class="searchbar" style="margin:14px 0" data-hsearch><div class="sb">${icon('search')}<input class="input" type="search" placeholder="${esc(t('searchPh'))}" aria-label="${esc(t('searchPh'))}"></div></form>
-    <a class="btn btn-accent" style="width:100%" href="${L('catalog')}">${icon('archive')}${esc(t('toCatalog'))}</a>
-    <button class="btn" style="width:100%;margin-top:8px" data-a11y-open>${icon('eye')}${esc({ ru: 'Доступность: крупный текст, озвучивание', kz: 'Қолжетімділік: ірі мәтін, дауыстап оқу', en: 'Accessibility: large text, read aloud' }[S.lang])}</button>
-    <h4>${esc(t('nav.catalog'))}</h4><a href="${L('catalog')}">${esc(t('cat.title'))}</a><a href="${L('exhibitions')}">${esc(t('nav.exhibitions'))}</a><a href="${L('news')}">${esc(t('nav.news'))}</a><a href="${L('branches')}">${esc(t('nav.branches'))}</a>
+    <a href="${L('catalog')}"><b>${esc(t('cat.title'))}</b></a><a href="${L('exhibitions')}"><b>${esc(t('nav.exhibitions'))}</b></a>
     ${Object.keys(MENUS).map((k) => `<h4>${esc(t('nav.' + k))}</h4>${MENUS[k].map(([kk, href]) => `<a href="${L(href)}">${esc(t('menu.' + kk)[0])}</a>`).join('')}`).join('')}
+    <h4>${esc(t('lang'))}</h4>${langs}
+    <a class="btn" style="width:100%;margin-top:16px" href="/cabinet" target="_blank" rel="noopener">${icon('user')}${esc({ ru: 'Войти в кабинет редактора', kz: 'Редактор кабинетіне кіру', en: 'Editor sign-in' }[S.lang])}</a>
   </div></div>`;
 
   const o = S.meta?.org || {};
@@ -146,8 +143,8 @@ function chrome() {
         <li><b style="color:#F3EBDB">${esc(t('footer.hours'))}:</b> ${esc(tr(o.hours))}</li><li><b style="color:#F3EBDB">${esc(t('footer.reading'))}:</b> ${esc(tr(o.readingHours))}</li></ul></div>
     </div>
     <div class="bottom"><span>© 1940–${new Date().getFullYear()} ${esc(tr(o.name))}. ${esc(t('footer.rights'))}</span>
-      <span><a href="${L('privacy')}">${esc(t('footer.privacy'))}</a> · <a href="${L('sources')}">${esc(t('src.title'))}</a> · <a href="/admin">${esc(t('footer.admin'))}</a></span></div>
-    <p class="small" style="margin-top:12px;color:#8E8572">${esc(t('footer.proto'))}</p>
+      <span><a href="${L('privacy')}">${esc(t('footer.privacy'))}</a> · <a href="${L('sources')}">${esc(t('src.title'))}</a> · <a href="/cabinet" target="_blank" rel="noopener">${esc({ ru: 'Кабинет редактора', kz: 'Редактор кабинеті', en: 'Editor workspace' }[S.lang])}</a> · <a href="/admin">${esc(t('footer.admin'))}</a></span></div>
+    <p class="small" style="margin-top:12px;color:#8E8572">${esc(t('footer.proto'))} ${esc(t('home.statsTitle'))}: ${(S.meta?.stats?.views || 0).toLocaleString('ru-RU')} ${esc(t('home.views'))}, ${(S.meta?.stats?.visitors || 0).toLocaleString('ru-RU')} ${esc(t('home.visitors'))}.</p>
   </div></footer>`;
   initAssistant();
   weather();
@@ -200,6 +197,10 @@ async function weather() {
 }
 
 if (!LANGS.includes(location.pathname.split('/')[1])) history.replaceState(null, '', `/${store.get('lang', 'ru')}/`);
+// Появление блоков при прокрутке (без JS всё видно сразу)
+document.documentElement.classList.add('js-anim');
+const revealIO = 'IntersectionObserver' in window ? new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); revealIO.unobserve(e.target); } }), { rootMargin: '0px 0px -8% 0px' }) : null;
+function observeReveal(scope) { scope.querySelectorAll('.reveal:not(.in)').forEach((el) => (revealIO ? revealIO.observe(el) : el.classList.add('in'))); }
 initA11y();
 render();
 export { DICT };

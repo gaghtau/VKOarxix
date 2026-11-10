@@ -14,6 +14,7 @@ export function verifyPassword(pw, salt, hash) {
 
 export const ROLES = {
   superadmin: 'Главный администратор',
+  chiefeditor: 'Главный редактор',
   siteadmin: 'Администратор сайта',
   editor: 'Редактор',
   archivist: 'Сотрудник архива',
@@ -27,18 +28,18 @@ const PERMS = {
   'users.manage': ['superadmin', 'siteadmin'],
   'audit.view': ['superadmin', 'siteadmin'],
   'settings.manage': ['superadmin'],
-  'content.edit': ['superadmin', 'siteadmin', 'editor'],
-  'content.review': ['superadmin', 'siteadmin', 'moderator'],
-  'content.publish': ['superadmin', 'siteadmin', 'moderator', 'editor'],
+  'content.edit': ['superadmin', 'siteadmin', 'editor', 'chiefeditor'],
+  'content.review': ['superadmin', 'siteadmin', 'moderator', 'chiefeditor'],
+  'content.publish': ['superadmin', 'siteadmin', 'moderator', 'editor', 'chiefeditor'],
   'catalog.edit': ['superadmin', 'archivist'],
   'catalog.review': ['superadmin', 'moderator'],
   'catalog.openFile': ['superadmin', 'moderator'], // открыть цифровую копию для публики
   'catalog.import': ['superadmin', 'archivist'],
   'catalog.export': ['superadmin', 'archivist', 'analyst'],
   'branches.edit': ['superadmin', 'siteadmin', 'branchadmin'],
-  'stats.view': ['superadmin', 'siteadmin', 'analyst', 'moderator'],
-  'feedback.view': ['superadmin', 'siteadmin', 'moderator', 'analyst'],
-  'comments.moderate': ['superadmin', 'siteadmin', 'moderator', 'editor'],
+  'stats.view': ['superadmin', 'siteadmin', 'analyst', 'moderator', 'chiefeditor'],
+  'feedback.view': ['superadmin', 'siteadmin', 'moderator', 'analyst', 'chiefeditor'],
+  'comments.moderate': ['superadmin', 'siteadmin', 'moderator', 'editor', 'chiefeditor'],
   'ai.tools': ['superadmin', 'archivist', 'editor'],
 };
 
