@@ -1,0 +1,21 @@
+{
+  "name": "gosarchiv-vko",
+  "version": "1.0.0",
+  "description": "Прототип нового сайта Государственного архива ВКО — Code Masters Hackathon 9.0",
+  "private": true,
+  "type": "module",
+  "main": "server/index.js",
+  "engines": {
+    "node": ">=22.5"
+  },
+  "scripts": {
+    "start": "node --no-warnings server/index.js",
+    "dev": "node --no-warnings --watch server/index.js",
+    "reset": "node --no-warnings server/index.js --reset-only",
+    "test": "node --no-warnings --test tests/"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "leaflet": "^1.9.4"
+  }
+}
