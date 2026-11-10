@@ -107,15 +107,14 @@ function chrome() {
   document.getElementById('chrome-top').innerHTML = `
   <div class="topbar"><div class="wrap">
     <span class="ti">${icon('phone')}<a href="tel:+77232255976">${esc(m?.phoneReception || '8 (7232) 25-59-76')}</a></span>
-    <span class="sep"></span>
-    <button type="button" class="a11y-btn" data-a11y-open aria-haspopup="dialog" aria-expanded="false">${icon('eye')}<span>${esc({ ru: 'Для слабовидящих', kz: 'Нашар көретіндерге', en: 'Accessibility' }[S.lang])}</span></button>
-    ${langs}
+    <a class="ann" href="${L('family')}"><b>${esc({ ru: 'Новое', kz: 'Жаңа', en: 'New' }[S.lang])}</b><span>${esc({ ru: 'Как найти документы о родственнике — пошаговая памятка', kz: 'Туысқан туралы құжаттарды қалай табуға болады', en: 'How to find records about a relative' }[S.lang])}</span> →</a>
+    <span class="tools"><button type="button" class="a11y-btn" data-a11y-open aria-haspopup="dialog" aria-expanded="false">${icon('eye')}<span>${esc({ ru: 'Для слабовидящих', kz: 'Нашар көретіндерге', en: 'Accessibility' }[S.lang])}</span></button>${langs}</span>
   </div></div>
   <header class="header"><div class="wrap">
     <a class="logo" href="${L('')}" aria-label="${esc(t('orgSub'))}"><span class="logo-mark">${logoMark}</span><span class="logo-text"><b>${esc(t('orgShort'))}</b><span>${esc(t('orgSub'))}</span></span></a>
     <nav aria-label="Main"><ul class="nav">${navItem('catalog', 'catalog')}${navItem('history')}${navItem('exhibitions', 'exhibitions')}${navItem('info')}${navItem('about')}</ul></nav>
     <div class="hdr-tools">
-      <a class="icon-btn" href="${L('catalog')}" aria-label="${esc(t('searchPh'))}" title="${esc(t('searchPh'))}">${icon('search')}</a>
+      <a class="search-pill" href="${L('catalog')}" aria-label="${esc(t('searchPh'))}">${icon('search')}<span>${esc({ ru: 'Поиск по архиву', kz: 'Архивтен іздеу', en: 'Search the archive' }[S.lang])}</span></a>
       <a class="btn btn-sm login-btn" href="/cabinet" target="_blank" rel="noopener" title="${esc({ ru: 'Кабинет редактора', kz: 'Редактор кабинеті', en: 'Editor workspace' }[S.lang])}">${icon('user')}<span>${esc(loginLabel())}</span></a>
       <button class="icon-btn burger" type="button" data-burger aria-label="${esc(t('openMenu'))}" aria-expanded="false" aria-controls="drawer">${icon('menu')}</button>
     </div>

@@ -27,66 +27,58 @@ export function upcoming(cal, n = 3) {
 
 // ---------------------------------------------------------------- Главная
 export async function home() {
-  const [digital, news, cal] = await Promise.all([
-    api(`/api/catalog/search?digital=1&per=24&lang=${S.lang}`, { cache: true }),
-    api('/api/content/news', { cache: true }), api('/api/calendar', { cache: true }),
+  const [digital, news, cal, ex] = await Promise.all([
+    api(`/api/catalog/search?digital=1&per=48&lang=${S.lang}`, { cache: true }),
+    api('/api/content/news', { cache: true }), api('/api/calendar', { cache: true }), api('/api/content/exhibition', { cache: true }),
   ]);
   const X = (o) => o[S.lang] ?? o.ru;
-  const m = S.meta || {};
+  const m = S.meta || {}; const c = m.counts || {};
   const photos = digital.items.filter((d) => d.doc_type === 'photo');
   const pick = ['Куленов', 'Волков', 'Аманжолов', 'Чистяков', 'Кырыкбаев', 'Белослюдов', 'Бердус', 'Горохов'];
-  const featured = pick.map((n) => photos.find((p) => p.title.ru.includes(n))).filter(Boolean).concat(photos).filter((v, i, a) => a.indexOf(v) === i).slice(0, 8);
-  const heroB = M('building');
-  const days = upcoming(cal, 4);
+  const faces = pick.map((n) => photos.find((p) => p.title.ru.includes(n))).filter(Boolean).concat(photos).filter((v, i, arr) => arr.indexOf(v) === i).slice(0, 8);
   const lk = S.lang === 'kz' ? 'kz' : 'ru';
-  const help = [
-    ['catalog', X({ ru: 'Найти документ', kz: 'Құжат табу', en: 'Find a document' }), X({ ru: 'Поиск по фондам, описям и фото. Можно просто написать вопрос.', kz: 'Қорлар мен суреттер бойынша іздеу.', en: 'Search fonds, inventories and photos — or just ask.' })],
-    ['family', X({ ru: 'Найти родственника', kz: 'Туысқанды табу', en: 'Find a relative' }), X({ ru: 'Три вопроса — и памятка: куда обратиться и что взять с собой.', kz: 'Үш сұрақ — және жадынама.', en: 'Three questions — and a checklist.' })],
-    ['exhibitions', X({ ru: 'Посмотреть выставки', kz: 'Көрмелерді көру', en: 'See exhibitions' }), X({ ru: 'Люди края, путешественники XIX века, ГЭС на Иртыше.', kz: 'Өлке адамдары, саяхатшылар, СЭС.', en: 'People of the region, travellers, dams.' })],
-    ['branches', X({ ru: 'Прийти в архив', kz: 'Архивке келу', en: 'Visit the archive' }), X({ ru: 'Адреса, телефоны и маршрут до 14 зданий архива.', kz: '14 ғимараттың мекенжайлары.', en: 'Addresses and routes to 14 locations.' })],
+  const exImg = { 'honorary-citizens': null, travellers: 'uk-1891', 'irtysh-energy': 'uk-hpp', 'archive-history': 'building' };
+  const cards = [
+    ...ex.map((e) => ({ href: 'exhibitions/' + e.slug, img: exImg[e.slug] ? M(exImg[e.slug])?.url : e.cover?.url, pill: X({ ru: 'Выставка', kz: 'Көрме', en: 'Exhibition' }), title: tr(e.title), d: tr(e.intro) })),
+    { href: 'family', img: M('reading-1')?.url, pill: X({ ru: 'Помощь', kz: 'Көмек', en: 'Help' }), title: X({ ru: 'Как найти документы о родственнике', kz: 'Туысқан туралы құжаттарды табу', en: 'Find records about a relative' }), d: X({ ru: 'Три вопроса — и памятка: куда обратиться, что взять с собой.', kz: 'Үш сұрақ — және жадынама.', en: 'Three questions and a checklist.' }) },
+    { href: 'then-and-now', split: ['uk-1891', 'uk-irtysh'], pill: X({ ru: 'Тогда и сейчас', kz: 'Сол кезде және қазір', en: 'Then & now' }), title: X({ ru: 'Усть-Каменогорск: 1891 и сегодня', kz: 'Өскемен: 1891 және бүгін', en: 'Ust-Kamenogorsk: 1891 and today' }), d: X({ ru: 'Сдвиньте шторку и сравните виды.', kz: 'Жылжытып, салыстырыңыз.', en: 'Drag to compare.' }) },
   ];
+  const ico = `<svg class="ico" viewBox="0 0 96 96" aria-hidden="true"><defs><linearGradient id="bxF" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F1E6CF"/><stop offset="1" stop-color="#D9C6A2"/></linearGradient><linearGradient id="bxT" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFF8EA"/><stop offset="1" stop-color="#E9DCC1"/></linearGradient><linearGradient id="bxS" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#CDB68C"/><stop offset="1" stop-color="#B49B6E"/></linearGradient></defs><path d="M14 34 L48 20 L82 34 L48 48Z" fill="url(#bxT)"/><path d="M14 34 L48 48 L48 86 L14 72Z" fill="url(#bxF)"/><path d="M82 34 L48 48 L48 86 L82 72Z" fill="url(#bxS)"/><path d="M22 44 L40 51 L40 62 L22 55Z" fill="#1F3D2B" opacity=".9"/><path d="M26 49 L36 53" stroke="#E8DCC4" stroke-width="2" stroke-linecap="round"/><path d="M58 50 L74 43" stroke="#8B5CF6" stroke-width="5" stroke-linecap="round"/><path d="M14 34 L48 48 L82 34" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="1.2"/></svg>`;
   const html = `
-  <section class="cover" aria-labelledby="hero-title"><div class="wrap">
-    <div class="cover-text">
-      <p class="kicker"><span>${esc(t('orgShort'))}</span><span>${esc(X({ ru: 'с 1940 года', kz: '1940 жылдан', en: 'since 1940' }))}</span></p>
-      <h1 id="hero-title" class="lines">${t('hero.title')}</h1>
-      <p class="lead">${esc(X({ ru: 'Документы, фотографии и истории людей Восточного Казахстана. Напишите, что ищете, — архив подскажет.', kz: 'Шығыс Қазақстан адамдарының құжаттары мен суреттері. Не іздейтініңізді жазыңыз.', en: 'Documents, photographs and stories of East Kazakhstan. Type what you are looking for.' }))}</p>
-      <form class="drawer-front" role="search" data-home-search>
-        <span class="plate"><label for="home-q">${esc(X({ ru: 'Каталог', kz: 'Каталог', en: 'Catalogue' }))}</label><input id="home-q" type="search" placeholder="${esc(X({ ru: 'фамилия, город, год или вопрос', kz: 'тегі, қала, жыл немесе сұрақ', en: 'surname, town, year or a question' }))}" autocomplete="off"></span>
-        <button class="pull">${icon('search')}<span>${esc(t('hero.go'))}</span></button>
-      </form>
-      <p class="examples">${esc(X({ ru: 'Например:', kz: 'Мысалы:', en: 'For example:' }))} ${[X({ ru: 'Куленов', kz: 'Куленов', en: 'Kulenov' }), X({ ru: 'писатель', kz: 'жазушы', en: 'writer' }), 'Ф.1466'].map((e) => `<a href="${L('catalog?q=' + encodeURIComponent(e))}">${esc(e)}</a>`).join(' · ')}</p>
+  <section class="hero-s" aria-labelledby="hero-title"><div class="wrap">
+    <a class="badge" href="${L('memory')}"><b>${c.fund || 0}</b>${esc(X({ ru: 'фондов уже описаны онлайн — смотрите личные фонды', kz: 'қор онлайн сипатталған — жеке қорларды қараңыз', en: 'fonds already described online — see personal fonds' }))} →</a>
+    <h1 id="hero-title">${ico}<span>${esc(X({ ru: 'Архив Восточного Казахстана', kz: 'Шығыс Қазақстан архиві', en: 'The archive of East Kazakhstan' }))}</span></h1>
+    <p class="sub">${esc(X({ ru: 'Документы, фотографии и истории людей региона с 1940 года. Ищите по фамилии, городу, году — или просто задайте вопрос.', kz: '1940 жылдан бергі өңір адамдарының құжаттары мен суреттері. Тегі, қала, жыл бойынша іздеңіз.', en: 'Documents, photographs and stories of the region since 1940. Search by surname, town or year — or just ask.' }))}</p>
+    <form class="psearch" role="search" data-home-search>${icon('search')}<label class="sr-only" for="home-q">${esc(t('hero.ph'))}</label><input id="home-q" type="search" placeholder="${esc(X({ ru: 'Например: Куленов, Риддер 1941, фото Усть-Каменогорска', kz: 'Мысалы: Куленов, Риддер 1941', en: 'e.g. Kulenov, Ridder 1941' }))}" autocomplete="off"><button class="btn btn-accent">${esc(t('hero.go'))}</button></form>
+    <div class="quick-pills">
+      <a href="${L('family')}">${icon('users')}${esc(X({ ru: 'Найти родственника', kz: 'Туысқанды табу', en: 'Find a relative' }))}</a>
+      <a href="${L('services')}">${icon('file')}${esc(X({ ru: 'Получить справку', kz: 'Анықтама алу', en: 'Get a certificate' }))}</a>
+      <a href="${L('branches')}">${icon('pin')}${esc(X({ ru: 'Филиалы на карте', kz: 'Филиалдар картада', en: 'Branches map' }))}</a>
+      <a href="${L('calendar')}">${icon('calendar')}${esc(X({ ru: 'Памятные даты', kz: 'Атаулы күндер', en: 'Memorable dates' }))}</a>
     </div>
-    ${heroB ? `<figure class="print"><img src="${heroB.url}" alt="${esc(heroB.title)}" width="${heroB.w}" height="${heroB.h}"><span class="stamp" aria-hidden="true"><b>ГОСАРХИВ</b>ВКО<i>1940</i></span><figcaption>${esc(heroB.title)}</figcaption></figure>` : ''}
+    <div class="stats-row"><span><b>${(c.fund || 0) + (c.inventory || 0) + (c.case || 0) + (c.document || 0)}</b>${esc(X({ ru: 'описаний в каталоге', kz: 'сипаттама', en: 'catalogue records' }))}</span><span><b>${m.digital || 0}</b>${esc(X({ ru: 'фото онлайн', kz: 'онлайн сурет', en: 'photos online' }))}</span><span><b>${(m.branches || []).length}</b>${esc(X({ ru: 'зданий архива', kz: 'ғимарат', en: 'locations' }))}</span><span><b>1940</b>${esc(X({ ru: 'год основания', kz: 'құрылған жылы', en: 'founded' }))}</span></div>
   </div></section>
 
-  <section class="section" aria-labelledby="help-h"><div class="wrap">
-    <h2 class="tab-title" id="help-h"><span>${esc(X({ ru: 'Чем можем помочь', kz: 'Қалай көмектесе аламыз', en: 'How can we help' }))}</span></h2>
-    <div class="icards">${help.map(([href, h, d], i) => `<a class="icard reveal" style="--d:${i}" href="${L(href)}"><span class="no">№ ${i + 1}</span><b>${esc(h)}</b><span>${esc(d)}</span><span class="go" aria-hidden="true">→</span></a>`).join('')}</div>
+  <section class="sblock" aria-labelledby="gal-h"><div class="wrap">
+    <div class="shead"><div><h2 id="gal-h">${esc(X({ ru: 'Выставки и подборки', kz: 'Көрмелер мен жинақтар', en: 'Exhibitions & collections' }))}</h2><p>${esc(X({ ru: 'Реальные документы и фотографии из фондов архива.', kz: 'Архив қорларындағы нақты құжаттар.', en: 'Real records from the archive.' }))}</p></div><a class="more" href="${L('exhibitions')}">${esc(t('home.all'))} →</a></div>
+    <div class="gal">${cards.map((k, i) => `<a class="gcard reveal ${k.split ? 'split' : ''}" style="--d:${i % 2}" href="${L(k.href)}"><div class="shot">${k.split ? k.split.map((x) => `<img src="${esc(M(x)?.thumb || '')}" alt="" loading="lazy">`).join('') : k.img ? `<img src="${esc(k.img)}" alt="" loading="lazy">` : ''}<span class="pill">${esc(k.pill)}</span></div><b>${esc(k.title)}</b><span class="d">${esc(k.d)}</span></a>`).join('')}</div>
   </div></section>
 
-  <section class="section section-alt" aria-labelledby="pf-h"><div class="wrap">
-    <div class="tab-row"><h2 class="tab-title" id="pf-h"><span>${esc(X({ ru: 'Из личных фондов', kz: 'Жеке қорлардан', en: 'From personal fonds' }))}</span></h2><a class="more" href="${L('memory')}">${esc(X({ ru: 'Все люди и коллекции', kz: 'Барлық тұлғалар', en: 'All people' }))} →</a></div>
-    <div class="pdrawer">${featured.map((d, i) => `<a class="pcard reveal" style="--d:${i};--r:${[-2, 1.5, -1, 2, -1.5, 1, -2.5, 1.2][i % 8]}deg" href="${L('catalog/' + d.id)}"><img src="${fileUrl(d.id, 1, true)}" alt="${esc(tr(d.title).replace(/^[^:]+:\s*/, ''))}" loading="lazy"><b>${esc(tr(d.title).replace(/^[^:]+:\s*/, ''))}</b><span class="mono">${esc(d.cipher)}</span></a>`).join('')}</div>
+  <section class="sblock" aria-labelledby="faces-h"><div class="wrap">
+    <div class="shead"><div><h2 id="faces-h">${esc(X({ ru: 'Лица из личных фондов', kz: 'Жеке қорлардағы тұлғалар', en: 'Faces from personal fonds' }))}</h2><p>${esc(X({ ru: 'Учёные, писатели, инженеры и фронтовики — каждый портрет ведёт к описанию фонда.', kz: 'Әр портрет қор сипаттамасына апарады.', en: 'Each portrait links to its fonds description.' }))}</p></div><a class="more" href="${L('memory')}">${esc(X({ ru: 'Все люди', kz: 'Барлық тұлғалар', en: 'All people' }))} →</a></div>
+    <div class="faces">${faces.map((d, i) => `<a class="face reveal" style="--d:${i % 4}" href="${L('catalog/' + d.id)}"><div class="ph"><img src="${fileUrl(d.id, 1, true)}" alt="${esc(tr(d.title).replace(/^[^:]+:\s*/, ''))}" loading="lazy"></div><b>${esc(tr(d.title).replace(/^[^:]+:\s*/, ''))}</b><span>${esc(d.cipher)}</span></a>`).join('')}</div>
   </div></section>
 
-  <section class="section reveal" aria-labelledby="tn-h"><div class="wrap">
-    <div class="tab-row"><h2 class="tab-title" id="tn-h"><span>${esc(X({ ru: 'Тогда и сейчас', kz: 'Сол кезде және қазір', en: 'Then and now' }))}</span></h2><a class="more" href="${L('then-and-now')}">${esc(t('home.all'))} →</a></div>
-    <p class="muted" style="margin-top:-6px">${esc(X({ ru: 'Усть-Каменогорск в 1891 году и сегодня. Сдвиньте шторку.', kz: 'Өскемен 1891 жылы және бүгін. Жылжытыңыз.', en: 'Ust-Kamenogorsk in 1891 and today. Drag the slider.' }))}</p>
-    ${compareHtml('uk-1891', 'uk-irtysh', '1891', X({ ru: 'сегодня', kz: 'бүгін', en: 'today' }))}
-  </div></section>
-
-  <section class="section section-alt"><div class="wrap two-col">
-    <div class="reveal"><div class="tab-row"><h2 class="tab-title"><span>${esc(t('nav.news'))}</span></h2><a class="more" href="${L('news')}">${esc(t('home.all'))} →</a></div>
-      <ul class="ledger-list">${news.slice(0, 4).map((n) => `<li><a href="${L('news/' + n.slug)}"><time class="mono">${esc(fmtDate(n.date))}</time><b>${esc(tr(n.title))}</b></a></li>`).join('')}</ul></div>
-    <div class="reveal" style="--d:1"><div class="tab-row"><h2 class="tab-title"><span>${esc(t('home.calTitle'))}</span></h2><a class="more" href="${L('calendar')}">${esc(t('home.all'))} →</a></div>
-      <ul class="ledger-list">${days.map((d) => `<li><span><time class="mono">${esc(d.date[lk])}</time><span>${esc(d.text[lk])}</span></span></li>`).join('')}</ul></div>
+  <section class="sblock"><div class="wrap rows">
+    <div class="card reveal"><div class="shead" style="margin:10px 0 0"><h3>${esc(t('nav.news'))}</h3><a class="more" href="${L('news')}">${esc(t('home.all'))} →</a></div>
+      <ul>${news.slice(0, 4).map((n) => `<li><a href="${L('news/' + n.slug)}"><time>${esc(fmtDate(n.date))}</time><b>${esc(tr(n.title))}</b></a></li>`).join('')}</ul></div>
+    <div class="card reveal" style="--d:1"><div class="shead" style="margin:10px 0 0"><h3>${esc(t('home.calTitle'))}</h3><a class="more" href="${L('calendar')}">${esc(t('home.all'))} →</a></div>
+      <ul>${upcoming(cal, 4).map((d) => `<li><span><time>${esc(d.date[lk])}</time><span>${esc(d.text[lk])}</span></span></li>`).join('')}</ul></div>
   </div></section>`;
   return {
     title: '', html,
     after(root) {
       root.querySelectorAll('[data-home-search]').forEach((f) => f.addEventListener('submit', (e) => { e.preventDefault(); const q = f.querySelector('input').value.trim(); S.navigate(L('catalog') + (q ? '?q=' + encodeURIComponent(q) : '')); }));
-      mountCompare(root);
     },
   };
 }
