@@ -1,4 +1,4 @@
-import { S, t, tr, esc, L, api, store, docCard, pageHead, crumbs, fmtDate, fileUrl, toast, errorBox, demoTag, trBadge, M, fig, credit, commentsHtml, mountComments } from './core.js';
+import { S, t, tr, esc, L, api, store, docCard, pageHead, crumbs, fmtDate, fileUrl, toast, errorBox, demoTag, trBadge, M, fig, credit, commentsHtml, mountComments, years } from './core.js';
 import { icon } from './icons.js';
 import { renderAnswer, ask } from './assistant.js';
 import { compareHtml, mountCompare } from './features.js';
@@ -36,7 +36,10 @@ export async function home() {
   const photos = digital.items.filter((d) => d.doc_type === 'photo');
   const pick = ['Куленов', 'Волков', 'Аманжолов', 'Чистяков', 'Кырыкбаев', 'Белослюдов', 'Бердус', 'Горохов', 'Карбушев', 'Коншин'];
   const reel = pick.map((n) => photos.find((p) => p.title.ru.includes(n))).filter(Boolean).concat(photos).filter((v, i, a) => a.indexOf(v) === i).slice(0, 10);
-  const scr = M('uk-1891');
+  // Кадры «микрофильма» на экране монитора: старые гравюры и фото края → современный город
+  const FR = ['uk-1891', 'zaisan-1875', 'zhemini-1875', 'uk-irtysh', 'uk-hpp', 'bukhtarma-sea', 'uk-panorama'].map((k) => ({ k, m: M(k) })).filter((f) => f.m);
+  const scr = FR[0]?.m;
+  const cap = (mm) => String(mm.title || '').split(/\.\s|,\s(?=Фото|фото|гравюр)/)[0].slice(0, 70);
   const days = upcoming(cal, 4);
   const lk = S.lang === 'kz' ? 'kz' : 'ru';
   const nm = (d) => tr(d.title).replace(/^[^:]+:\s*/, '');
@@ -49,19 +52,23 @@ export async function home() {
   <div class="d-corner r" aria-hidden="true"><b data-count>01</b> / 05</div>
 
   <section class="d-intro d-ch" id="ch1" aria-labelledby="hero-title"><div class="crt" data-crt>
-    <div class="crt-body"><div class="crt-screen">${scr ? `<img src="${esc(scr.url)}" alt="">` : ''}
+    <div class="crt-body"><div class="crt-screen" data-screen tabindex="-1">${scr ? `<img src="${esc(scr.url)}" alt="" data-frame-img>` : ''}<span class="crt-glare" aria-hidden="true"></span><span class="crt-static" aria-hidden="true"></span>
+      <div class="crt-off" aria-hidden="true"><span>${esc(X({ ru: 'НЕТ СИГНАЛА', kz: 'СИГНАЛ ЖОҚ', en: 'NO SIGNAL' }))}</span></div>
       <div class="crt-in">
-        <span class="mlabel">${esc(X({ ru: 'Госархив ВКО / открытый архив', kz: 'ШҚО мемархиві / ашық архив', en: 'State Archive EKR / open archive' }))}</span>
+        <div class="crt-top"><span class="mlabel">${esc(X({ ru: 'Госархив ВКО / открытый архив', kz: 'ШҚО мемархиві / ашық архив', en: 'State Archive EKR / open archive' }))}</span>${scr ? `<a class="crt-cap" data-frame-cap href="${esc(scr.sourceUrl || L('sources'))}" target="_blank" rel="noopener"><b data-frame-no>01 / ${String(FR.length).padStart(2, '0')}</b> <span data-frame-date>${esc(scr.date || '')}</span><span data-frame-title>${esc(cap(scr))}</span></a>` : ''}</div>
         <div><h1 id="hero-title" data-type="${esc(X({ ru: 'Память края — открыта', kz: 'Өлке жады — ашық', en: 'The region’s memory — open' }))}">${esc(X({ ru: 'Память края — открыта', kz: 'Өлке жады — ашық', en: 'The region’s memory — open' }))}<span class="caret" aria-hidden="true"></span></h1></div>
         <div style="display:grid;gap:14px">
           <form class="crt-search" role="search" data-home-search><span aria-hidden="true">&gt;</span><label class="sr-only" for="home-q">${esc(t('hero.ph'))}</label><input id="home-q" type="search" placeholder="${esc(X({ ru: 'фамилия, город, год или вопрос', kz: 'тегі, қала, жыл немесе сұрақ', en: 'surname, town, year or a question' }))}" autocomplete="off"><button>${esc(X({ ru: 'НАЙТИ', kz: 'ІЗДЕУ', en: 'SEARCH' }))} →</button></form>
+          <div class="crt-out" data-crt-out aria-live="polite" hidden></div>
           <div class="crt-hint"><span class="mlabel" style="color:#BDB5A4">${esc(X({ ru: 'Например:', kz: 'Мысалы:', en: 'Try:' }))} <a href="${L('catalog?q=' + encodeURIComponent('Куленов'))}" style="display:inline">Куленов</a> · <a href="${L('catalog?q=' + encodeURIComponent('Ф.1466'))}" style="display:inline">Ф.1466</a></span><a href="#ch2">${esc(X({ ru: 'Листайте', kz: 'Төмен', en: 'Keep scrolling' }))} <i aria-hidden="true"></i></a></div>
         </div>
       </div></div>
-      <div class="crt-bezel" aria-hidden="true"><span class="grill"></span><span class="led"></span></div>
+      <div class="crt-bezel"><span class="grill" aria-hidden="true"></span>
+        <div class="crt-ctl" role="group" aria-label="${esc(X({ ru: 'Кадры на экране', kz: 'Экрандағы кадрлар', en: 'Screen frames' }))}"><button type="button" data-frame="-1" aria-label="${esc(X({ ru: 'Предыдущий кадр', kz: 'Алдыңғы кадр', en: 'Previous frame' }))}">◀</button><span class="crt-dots" aria-hidden="true">${FR.map((_, i) => `<i${i ? '' : ' class="on"'}></i>`).join('')}</span><button type="button" data-frame="1" aria-label="${esc(X({ ru: 'Следующий кадр', kz: 'Келесі кадр', en: 'Next frame' }))}">▶</button></div>
+        <span class="led" aria-hidden="true"></span></div>
     </div>
     <div class="crt-neck" aria-hidden="true"></div>
-    <div class="crt-base" aria-hidden="true"><span class="pw"></span><span class="vents"></span><span class="slot"></span></div>
+    <div class="crt-base"><button type="button" class="pw" data-power aria-pressed="true" aria-label="${esc(X({ ru: 'Питание монитора', kz: 'Монитор қуаты', en: 'Monitor power' }))}" title="${esc(X({ ru: 'Выключить / включить экран', kz: 'Экранды өшіру / қосу', en: 'Screen off / on' }))}"></button><span class="vents" aria-hidden="true"></span><button type="button" class="slot" data-film title="${esc(X({ ru: 'Показать случайный документ из архива', kz: 'Архивтен кездейсоқ құжат', en: 'Show a random archival record' }))}"><span>${esc(X({ ru: 'Микрофильм', kz: 'Микрофильм', en: 'Microfilm' }))}</span><em>${esc(X({ ru: 'случайный документ ⏏', kz: 'кездейсоқ құжат ⏏', en: 'random record ⏏' }))}</em></button></div>
   </div></section>
 
   <section class="d-ch" id="ch2"><div class="wrap">
@@ -100,17 +107,121 @@ export async function home() {
   return {
     title: '', html,
     after(root) {
+      const cleanups = [];
       root.querySelectorAll('[data-home-search]').forEach((f) => f.addEventListener('submit', (e) => { e.preventDefault(); const q = f.querySelector('input').value.trim(); S.navigate(L('catalog') + (q ? '?q=' + encodeURIComponent(q) : '')); }));
       root.querySelectorAll('[data-cta-ask]').forEach((b) => { b.onclick = () => S.openAssistant?.(); });
       mountCompare(root);
+      cleanups.push(mountMonitor(root, FR, photos, cap));
       // Лента: кнопки «назад / дальше»
       const wrap = root.querySelector('[data-reel]'), track = wrap.querySelector('.reel-track'), count = root.querySelector('[data-reel-count]');
       const posters = [...track.children]; let idx = 0;
       const go = (d) => { idx = Math.max(0, Math.min(posters.length - 1, idx + d)); count.textContent = `${String(idx + 1).padStart(2, '0')} / ${String(posters.length).padStart(2, '0')}`; if (window.__reelGoto) window.__reelGoto(idx); else posters[idx].scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' }); };
       root.querySelector('[data-reel-prev]').onclick = () => go(-1);
       root.querySelector('[data-reel-next]').onclick = () => go(1);
+      return () => cleanups.forEach((f) => f?.());
     },
   };
+}
+// Интерактивный монитор на главной: кадры, питание, «микрофильм», живые подсказки поиска, блик за курсором
+function mountMonitor(root, FR, photos, cap) {
+  const crt = root.querySelector('[data-crt]'); if (!crt) return null;
+  const screen = crt.querySelector('[data-screen]'), img = crt.querySelector('[data-frame-img]');
+  const no = crt.querySelector('[data-frame-no]'), date = crt.querySelector('[data-frame-date]'), title = crt.querySelector('[data-frame-title]'), capA = crt.querySelector('[data-frame-cap]');
+  const dots = [...crt.querySelectorAll('.crt-dots i')];
+  const D = document.documentElement.dataset;
+  const calm = () => !!(D.motion || D.reading || matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const timers = []; let i = 0, auto = null, film = null;
+  const pad = (n) => String(n).padStart(2, '0');
+
+  // Помехи при смене кадра
+  const tune = (swap) => {
+    if (calm()) { swap(); return; }
+    screen.classList.add('is-tuning');
+    timers.push(setTimeout(swap, 170), setTimeout(() => screen.classList.remove('is-tuning'), 380));
+  };
+  const show = (k) => {
+    if (!img || !FR.length) return;
+    film = null; screen.classList.remove('is-film');
+    i = (k + FR.length) % FR.length; const m = FR[i].m;
+    const pre = new Image(); pre.src = m.url;
+    const swap = () => {
+      img.src = m.url; img.alt = '';
+      if (no) no.textContent = `${pad(i + 1)} / ${pad(FR.length)}`;
+      if (date) date.textContent = m.date || '';
+      if (title) title.textContent = cap(m);
+      if (capA) { capA.href = m.sourceUrl || L('sources'); capA.target = '_blank'; }
+      dots.forEach((d, j) => d.classList.toggle('on', j === i));
+    };
+    (pre.complete ? tune(swap) : (pre.onload = pre.onerror = () => tune(swap)));
+  };
+  const step = (d) => { stopAuto(); show(i + d); };
+  crt.querySelectorAll('[data-frame]').forEach((b) => b.addEventListener('click', () => step(Number(b.dataset.frame))));
+  screen.addEventListener('keydown', (e) => { if (e.key === 'ArrowRight') step(1); if (e.key === 'ArrowLeft') step(-1); });
+
+  // Кадры меняются сами каждые 7 секунд, пока посетитель ничего не трогает
+  const stopAuto = () => { clearInterval(auto); auto = null; };
+  const startAuto = () => { if (!calm() && !auto && FR.length > 1) auto = setInterval(() => { if (!crt.matches(':hover, :focus-within') && !crt.classList.contains('is-off')) show(i + 1); }, 7000); };
+  startAuto();
+
+  // Питание: экран гаснет в линию и включается обратно
+  const pw = crt.querySelector('[data-power]');
+  pw?.addEventListener('click', () => {
+    const off = !crt.classList.contains('is-off');
+    crt.classList.toggle('is-off', off); pw.setAttribute('aria-pressed', String(!off));
+    crt.querySelectorAll('.crt-in a, .crt-in input, .crt-in button, [data-frame]').forEach((el) => { if (off) el.setAttribute('tabindex', '-1'); else el.removeAttribute('tabindex'); });
+    if (off) stopAuto(); else startAuto();
+  });
+
+  // «Микрофильм»: на экран выводится случайный оцифрованный документ из каталога
+  const filmBtn = crt.querySelector('[data-film]');
+  filmBtn?.addEventListener('click', () => {
+    if (!photos.length || !img) return;
+    stopAuto(); if (crt.classList.contains('is-off')) pw?.click();
+    let d; do { d = photos[Math.floor(Math.random() * photos.length)]; } while (photos.length > 1 && d === film);
+    film = d;
+    tune(() => {
+      img.src = fileUrl(d.id, 1); screen.classList.add('is-film');
+      if (no) no.textContent = d.cipher || ''; if (date) date.textContent = years(d);
+      if (title) title.textContent = tr(d.title).replace(/^[^:]+:\s*/, '').slice(0, 70);
+      if (capA) { capA.href = L('catalog/' + d.id); capA.removeAttribute('target'); }
+      dots.forEach((x) => x.classList.remove('on'));
+    });
+    filmBtn.classList.remove('is-eject'); void filmBtn.offsetWidth; filmBtn.classList.add('is-eject');
+  });
+
+  // Живые подсказки: под строкой поиска печатаются первые находки каталога
+  const input = crt.querySelector('#home-q'), out = crt.querySelector('[data-crt-out]');
+  let tmr = null, seq = 0;
+  input?.addEventListener('input', () => {
+    clearTimeout(tmr); const q = input.value.trim();
+    if (q.length < 2) { out.hidden = true; out.innerHTML = ''; return; }
+    tmr = setTimeout(async () => {
+      const my = ++seq;
+      try {
+        const r = await api(`/api/catalog/search?q=${encodeURIComponent(q)}&per=3&log=0&lang=${S.lang}`);
+        if (my !== seq) return;
+        const X = (o) => o[S.lang] || o.ru;
+        out.innerHTML = r.total
+          ? `<span class="crt-line muted">&gt; ${esc(X({ ru: 'найдено', kz: 'табылды', en: 'found' }))}: ${r.total}</span>${r.items.map((d) => `<a class="crt-line" href="${L('catalog/' + d.id)}"><b>${esc(d.cipher)}</b> ${esc(tr(d.title).slice(0, 60))}</a>`).join('')}${r.total > 3 ? `<a class="crt-line more" href="${L('catalog?q=' + encodeURIComponent(q))}">&gt; ${esc(X({ ru: 'показать все', kz: 'барлығын көрсету', en: 'show all' }))} →</a>` : ''}`
+          : `<span class="crt-line muted">&gt; ${esc(X({ ru: 'ничего не найдено — спросите помощника', kz: 'ештеңе табылмады — көмекшіден сұраңыз', en: 'nothing found — ask the assistant' }))}</span>`;
+        out.hidden = false;
+      } catch { out.hidden = true; }
+    }, 260);
+  });
+  input?.addEventListener('keydown', (e) => { if (e.key === 'Escape') { out.hidden = true; } });
+
+  // Блик и лёгкий наклон за курсором (только мышь, без «Без анимации»)
+  const body = crt.querySelector('.crt-body');
+  const move = (e) => {
+    if (calm() || e.pointerType !== 'mouse') return;
+    const r = body.getBoundingClientRect(); const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+    body.style.setProperty('--gx', `${(x * 100).toFixed(1)}%`); body.style.setProperty('--gy', `${(y * 100).toFixed(1)}%`);
+    body.style.transform = `perspective(1400px) rotateY(${((x - 0.5) * 4).toFixed(2)}deg) rotateX(${((0.5 - y) * 3).toFixed(2)}deg)`;
+  };
+  const leave = () => { body.style.transform = ''; };
+  body.addEventListener('pointermove', move); body.addEventListener('pointerleave', leave);
+
+  return () => { stopAuto(); timers.forEach(clearTimeout); clearTimeout(tmr); };
 }
 export const exTile = (e) => `<a class="tile" href="${L('exhibitions/' + e.slug)}"><div class="img">${e.cover ? `<img src="${esc(e.cover.url)}" alt="" loading="lazy">` : ''}</div><div class="body"><span class="tag tag-accent" style="justify-self:start">${esc(e.period)} · ${e.count} ${esc({ ru: 'экспонатов', kz: 'экспонат', en: 'exhibits' }[S.lang])}</span><h3>${esc(tr(e.title))}${trBadge(e.title)}</h3><p class="small muted" style="margin:0">${esc(tr(e.intro))}</p></div></a>`;
 export const newsCard = (n) => `<a class="news-card" href="${L('news/' + n.slug)}">${n.coverMedia ? `<div class="ncover"><img src="${esc(n.coverMedia.thumb)}" alt="" loading="lazy"></div>` : ''}<span class="date">${icon('calendar')}${esc(fmtDate(n.date))}${n.demo ? ' ' + demoTag() : ''}</span><h3>${esc(tr(n.title))}${trBadge(n.title)}</h3><p class="small muted" style="margin:0">${esc(tr(n.lead))}</p></a>`;
@@ -231,18 +342,54 @@ export function services() {
   <div class="notice warn">${icon('alert')}<div><p>${esc({ ru: 'Утверждённые отчёты, сроки и стоимость (если применимо) публикуются после предоставления заказчиком. Раздел наполняется через административную панель. Дата актуализации: —', kz: 'Есептер тапсырыс беруші ұсынғаннан кейін жарияланады.', en: 'Approved reports will be published once provided by the customer.' }[R])}</p></div></div>`;
   return { title: t('menu.services')[0], html: pageHead(esc(t('menu.services')[0]), esc({ ru: 'Правила, порядок и официальные каналы получения государственных услуг в области архивного дела.', kz: 'Архив ісі саласындағы мемлекеттік қызметтерді алу тәртібі.', en: 'Rules, procedure and official channels for archival state services.' }[R]), [[t('nav.info')], [t('menu.services')[0]]]) + sideLayout(INFO_NAV(), 'services', html) };
 }
-export function paid() {
-  const R = S.lang;
-  const kinds = { ru: ['Тематические запросы (поиск по теме, событию, факту)', 'Генеалогические запросы', 'Изготовление копий документов (ксерокопирование, сканирование)', 'Консультации по вопросам архивного дела', 'Упорядочение документов организаций', 'Экспертиза ценности документов организаций'], kz: ['Тақырыптық сұраулар', 'Генеалогиялық сұраулар', 'Құжаттардың көшірмелерін жасау', 'Архив ісі бойынша кеңестер', 'Ұйымдардың құжаттарын ретке келтіру', 'Құжаттардың құндылығын сараптау'], en: ['Thematic research', 'Genealogical research', 'Copies (photocopy, scan)', 'Consultations', 'Arrangement of organisational records', 'Records appraisal'] }[R];
+export async function paid() {
+  const R = S.lang; const P = await api('/api/prices', { cache: true }); const A = P.act;
+  const T = (o) => esc(o[R] || o.ru);
+  const depth = (idx) => idx.split('.').length;
+  // Самые частые вопросы посетителей — отдельными карточками
+  const pick = [
+    ['6.6', { ru: 'Доп. экземпляр архивной справки', kz: 'Архивтік анықтаманың қосымша данасы', en: 'Extra copy of an archival certificate' }],
+    ['8.1.1.1.5', { ru: 'Ксерокопия листа А4 (документ после 1991 г.)', kz: 'А4 парақ көшірмесі (1991 жылдан кейін)', en: 'A4 photocopy (record after 1991)' }],
+    ['8.3.2', { ru: 'Цифровая копия А4, 300 dpi (1931 г. — наши дни)', kz: 'А4 цифрлық көшірме, 300 dpi', en: 'A4 digital copy, 300 dpi (1931–present)' }],
+    ['8.5.3', { ru: 'Съёмка своим телефоном, за кадр (после 1946 г.)', kz: 'Өз телефоныңызбен түсіру, бір кадр', en: 'Photo with your own phone, per frame' }],
+    ['6.2.1', { ru: 'Тематический / генеалогический запрос, просмотр дела', kz: 'Тақырыптық / генеалогиялық сұрау, істі қарау', en: 'Thematic / genealogical request, per file' }],
+    ['6.1', { ru: 'Консультация историка, 1 час', kz: 'Тарихшы кеңесі, 1 сағат', en: 'Historian consultation, 1 hour' }],
+  ];
+  const all = P.sections.flatMap((s) => s.items);
+  const find = (i) => all.find((x) => x[0] === i);
+  const row = ([idx, name, unit, price]) => `<tr class="pl-d${Math.min(depth(idx), 4)}${price ? '' : ' pl-head'}" data-q="${esc((idx + ' ' + name).toLowerCase())}"><td class="mono">${esc(idx)}</td><td>${esc(name)}</td><td class="muted">${esc(unit)}</td><td class="pl-price">${price ? esc(price.replace(/,0(?=\b|$)/g, '')) : ''}</td></tr>`;
   const html = `${NO_FORMS()}
-  <h2>${esc({ ru: 'Постановление об утверждении прейскуранта', kz: 'Прейскурантты бекіту туралы қаулы', en: 'Decree approving the price list' }[R])}</h2>
-  <div class="card"><b>«Об утверждении прейскуранта цен на товары (работы, услуги), реализуемые государственными архивами управления цифровизации и архивов Восточно-Казахстанской области»</b>
-  <p class="small muted" style="margin:8px 0 0">${esc({ ru: 'Реквизиты и текст будут размещены после предоставления заказчиком утверждённой редакции.', kz: 'Деректемелер тапсырыс беруші ұсынғаннан кейін орналастырылады.', en: 'Details will be published once the approved version is provided.' }[R])}</p></div>
-  <h2 style="margin-top:28px">${esc({ ru: 'Прейскурант', kz: 'Прейскурант', en: 'Price list' }[R])}</h2>
-  <div class="table-wrap"><table class="table price-table"><thead><tr><th>№</th><th>${esc({ ru: 'Наименование работы (услуги)', kz: 'Жұмыстың (қызметтің) атауы', en: 'Service' }[R])}</th><th>${esc({ ru: 'Ед. изм.', kz: 'Өлш. бірл.', en: 'Unit' }[R])}</th><th>${esc({ ru: 'Цена, тенге', kz: 'Бағасы, теңге', en: 'Price, KZT' }[R])}</th></tr></thead>
-  <tbody>${kinds.map((k, i) => `<tr><td>${i + 1}</td><td>${esc(k)}</td><td class="muted">—</td><td class="muted">${esc({ ru: 'не заполнено', kz: 'толтырылмаған', en: 'not filled' }[R])}</td></tr>`).join('')}</tbody></table></div>
-  <div class="notice warn" style="margin-top:14px">${icon('alert')}<div><p>${esc({ ru: 'Демонстрационный макет таблицы: перечень видов работ приведён для примера, цены не публикуются до получения утверждённого прейскуранта. Сайт не рассчитывает стоимость и не принимает оплату.', kz: 'Демо-кесте: бағалар бекітілген прейскурант алынғанға дейін жарияланбайды.', en: 'Demo layout: prices are not published until the approved price list is received.' }[R])}</p></div></div>`;
-  return { title: t('menu.paid')[0], html: pageHead(esc(t('menu.paid')[0]), esc(t('menu.paid')[1]), [[t('nav.info')], [t('menu.paid')[0]]]) + sideLayout(INFO_NAV(), 'services/paid', html) };
+  <div class="card pl-act"><div class="mlabel">${esc({ ru: 'Действующий документ', kz: 'Қолданыстағы құжат', en: 'Current act' }[R])}</div>
+    <h2 style="margin:6px 0 8px;font-size:1.25rem">${esc({ ru: 'Постановление', kz: 'Қаулы', en: 'Resolution' }[R])} ${T(A.issuer)} ${esc({ ru: 'от 15 декабря 2023 года', kz: '2023 жылғы 15 желтоқсандағы', en: 'of 15 December 2023' }[R])} № ${esc(A.no)}</h2>
+    <p style="margin:0 0 10px">«${T(A.title)}»</p>
+    <p class="small muted" style="margin:0 0 6px">${T(A.basis)}</p><p class="small muted" style="margin:0 0 14px">${T(A.effective)}</p>
+    <div class="row" style="gap:8px;flex-wrap:wrap"><a class="btn btn-sm" href="${A.files.ru}" target="_blank" rel="noopener">${icon('file')}PDF · RU</a><a class="btn btn-sm" href="${A.files.kz}" target="_blank" rel="noopener">${icon('file')}PDF · KZ</a></div></div>
+
+  <h2 style="margin-top:30px">${esc({ ru: 'Чаще всего спрашивают', kz: 'Жиі сұралатындар', en: 'Most asked' }[R])}</h2>
+  <div class="pl-top">${pick.map(([i, label]) => { const it = find(i); return it ? `<div class="pl-tile"><span class="mono small muted">${esc(i)}</span><b>${esc(it[3].replace(/,0$/, ''))} ₸</b><span>${esc(label[R] || label.ru)}</span><small class="muted">${esc(it[2])}</small></div>` : ''; }).join('')}</div>
+
+  <h2 style="margin-top:30px">${esc({ ru: 'Прейскурант полностью', kz: 'Толық прейскурант', en: 'Full price list' }[R])}</h2>
+  ${R !== 'ru' ? `<p class="small muted">${esc({ kz: 'Позициялар атаулары орыс тілінде берілген; ресми қазақша мәтіні — PDF · KZ файлында.', en: 'Item names are given in Russian as in the act; the official Kazakh text is in the PDF · KZ file.' }[R])}</p>` : ''}
+  <label class="pl-search"><span class="sr-only">${esc({ ru: 'Найти услугу', kz: 'Қызметті табу', en: 'Find a service' }[R])}</span>${icon('search')}<input class="input" type="search" data-pl-q placeholder="${esc({ ru: 'Найти: копия, справка, выставка, реставрация…', kz: 'Іздеу: көшірме, анықтама, көрме…', en: 'Find: copy, certificate, exhibition…' }[R])}"></label>
+  <p class="small muted" data-pl-none hidden>${esc({ ru: 'Ничего не найдено — попробуйте другое слово.', kz: 'Ештеңе табылмады.', en: 'Nothing found.' }[R])}</p>
+  <div class="pl-sections">${P.sections.map((s, k) => `<details class="pl-sec" ${k === 7 || k === 5 ? 'open' : ''}><summary><span class="mono">${esc(s.n)}</span><span>${T(s.title)}</span><small class="muted">${s.items.filter((x) => x[3]).length} ${esc({ ru: 'поз.', kz: 'тармақ', en: 'items' }[R])}</small></summary>
+    <div class="table-wrap"><table class="table price-table"><thead><tr><th>${esc({ ru: 'Индекс', kz: 'Индекс', en: 'Index' }[R])}</th><th>${esc({ ru: 'Наименование работ и услуг', kz: 'Жұмыстар мен қызметтер атауы', en: 'Works and services' }[R])}</th><th>${esc({ ru: 'Ед. изм.', kz: 'Өлш. бірл.', en: 'Unit' }[R])}</th><th>${esc({ ru: 'Цена, ₸', kz: 'Бағасы, ₸', en: 'Price, ₸' }[R])}</th></tr></thead><tbody>${s.items.map(row).join('')}</tbody></table></div></details>`).join('')}</div>
+
+  <div class="grid g2" style="margin-top:26px"><div class="card"><h3 style="margin-top:0">${esc({ ru: 'Льготы и бесплатные услуги', kz: 'Жеңілдіктер және тегін қызметтер', en: 'Discounts and free services' }[R])}</h3><ul class="prose" style="margin:0">${(P.benefits[R] || P.benefits.ru).map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>
+  <div class="card"><h3 style="margin-top:0">${esc({ ru: 'Примечания', kz: 'Ескертпелер', en: 'Notes' }[R])}</h3>${(P.notes[R] || P.notes.ru).map((x) => `<p class="small">${esc(x)}</p>`).join('')}</div></div>
+  <p class="small muted" style="margin-top:14px">${esc({ ru: 'Цены указаны в тенге. Сайт не рассчитывает стоимость и не принимает оплату — точную сумму назовут сотрудники архива.', kz: 'Бағалар теңгемен. Сайт төлем қабылдамайды.', en: 'Prices in tenge. The site takes no payments; archive staff will confirm the exact amount.' }[R])}</p>`;
+  const after = (root) => {
+    const q = root.querySelector('[data-pl-q]'), none = root.querySelector('[data-pl-none]');
+    q.addEventListener('input', () => {
+      const v = q.value.trim().toLowerCase(); let shown = 0;
+      root.querySelectorAll('.pl-sec').forEach((d) => {
+        let n = 0; d.querySelectorAll('tbody tr').forEach((tr) => { const ok = !v || tr.dataset.q.includes(v); tr.hidden = !ok; if (ok) n++; });
+        d.hidden = !n; if (v && n) d.open = true; shown += n;
+      });
+      none.hidden = shown > 0;
+    });
+  };
+  return { title: t('menu.paid')[0], html: pageHead(esc(t('menu.paid')[0]), esc(t('menu.paid')[1]), [[t('nav.info')], [t('menu.paid')[0]]]) + sideLayout(INFO_NAV(), 'services/paid', html), after };
 }
 export function readingRoom() {
   const R = S.lang; const o = S.meta?.org || {};

@@ -12,6 +12,14 @@ import { org, departments, calendar, media as M } from './seed.js';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const reset = process.argv.includes('--reset') || process.argv.includes('--reset-only');
 const db = openDb({ reset });
+// Дополнение уже созданной базы: постановление № 289 о прейскуранте в разделе нормативных актов
+{
+  const law = { title: 'Постановление акимата ВКО «Об утверждении прейскуранта цен на товары (работы, услуги), реализуемые государственными архивами управления цифровизации и архивов Восточно-Казахстанской области»', req: 'от 15.12.2023 № 289', url: '/files/paid/prices-289-ru.pdf', group: 'region', local: true };
+  if (!db.prepare("SELECT 1 FROM content WHERE type='law' AND data LIKE '%prices-289%'").get()) {
+    const t = new Date().toISOString();
+    db.prepare('INSERT INTO content (type,slug,wf_status,data,sort,created_by,approved_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)').run('law', 'l-prices-289', 'published', JSON.stringify(law), 99, 'seed', 'seed', t, t);
+  }
+}
 if (!db.prepare('SELECT 1 FROM users WHERE login=?').get('кана')) {
   const { salt, hash } = A.hashPassword(process.env.EDITOR_PASSWORD || '123123');
   db.prepare('INSERT INTO users (login,name,role,branch,salt,hash,created_at) VALUES (?,?,?,?,?,?,?)').run('кана', 'Кана', 'chiefeditor', null, salt, hash, new Date().toISOString());
@@ -76,6 +84,10 @@ function publicCard(r, lang) {
 }
 
 // ---------------------------------------------------------------- Публичный API
+// Прейскурант платных услуг (постановление акимата ВКО от 15.12.2023 № 289)
+const PRICES = JSON.parse(readFileSync(join(root, 'server', 'data', 'price_list.json'), 'utf8'));
+app.get('/api/prices', (req, res) => { res.set('Cache-Control', 'public, max-age=300'); res.json(PRICES); });
+
 app.get('/api/meta', (req, res) => {
   const stats = Object.fromEntries(db.prepare("SELECT key,value FROM stats WHERE key IN ('views','visitors')").all().map((s) => [s.key, s.value]));
   const counts = db.prepare(`SELECT level, COUNT(*) n FROM records WHERE ${PUBLIC_WHERE} GROUP BY level`).all();
@@ -131,7 +143,7 @@ app.get('/api/catalog/search', (req, res) => {
   rows.sort(S[sort] || S.date);
   const per = Math.min(48, Math.max(6, Number(f.per) || 12));
   const total = rows.length, pages = Math.max(1, Math.ceil(total / per)), page = Math.min(pages, Math.max(1, Number(f.page) || 1));
-  if (q) db.prepare('INSERT INTO searchlog (at,q,results,source,lang) VALUES (?,?,?,?,?)').run(now(), q.toLowerCase(), total, 'catalog', lang);
+  if (q && f.log !== '0') db.prepare('INSERT INTO searchlog (at,q,results,source,lang) VALUES (?,?,?,?,?)').run(now(), q.toLowerCase(), total, 'catalog', lang);
   res.json({ total, page, pages, per, sort, items: rows.slice((page - 1) * per, page * per).map((r) => publicCard(r, lang)), facets, understood, suggestions });
 });
 

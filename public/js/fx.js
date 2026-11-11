@@ -56,7 +56,7 @@ export function initFx(root) {
         const st = new SplitText(h, { type: 'words,chars', wordsClass: 'wd', charsClass: 'ch' }); splits.push(st);
         tl.from(st.chars, { opacity: 0, duration: 0.01, stagger: 0.045, ease: 'none' }, '-=0.1');
       }
-      tl.from(crt.querySelectorAll('.crt-in > .mlabel, .crt-search, .crt-hint'), { y: 14, opacity: 0, stagger: 0.1, duration: 0.5 }, '-=0.2');
+      tl.from(crt.querySelectorAll('.crt-top, .crt-search, .crt-hint, .crt-ctl'), { y: 14, opacity: 0, stagger: 0.1, duration: 0.5 }, '-=0.2');
       tweens.push(tl);
     }
 
