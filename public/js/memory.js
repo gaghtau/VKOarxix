@@ -121,6 +121,91 @@ export function miniMap(el, branches) {
 const TYPES = { all: { ru: 'Все', kz: 'Барлығы', en: 'All' }, main: { ru: 'Главное здание', kz: 'Бас ғимарат', en: 'Main building' }, city: { ru: 'Городские', kz: 'Қалалық', en: 'City' }, district: { ru: 'Районные', kz: 'Аудандық', en: 'District' }, personnel: { ru: 'По личному составу', kz: 'Жеке құрам бойынша', en: 'Personnel records' } };
 const hav = (a, b) => { const R = 6371, dLat = ((b[0] - a[0]) * Math.PI) / 180, dLng = ((b[1] - a[1]) * Math.PI) / 180; const x = Math.sin(dLat / 2) ** 2 + Math.cos((a[0] * Math.PI) / 180) * Math.cos((b[0] * Math.PI) / 180) * Math.sin(dLng / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); };
 
+// ---------------------------------------------------------------- Маршрут по дорогам (OSRM / FOSSGIS) и геокодер (Nominatim)
+async function geocode(q) {
+  try {
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=kz&accept-language=${S.lang === 'en' ? 'en' : 'ru'}&q=${encodeURIComponent(q)}`, { headers: { Accept: 'application/json' } });
+    const j = await r.json(); return j[0] ? [Number(j[0].lat), Number(j[0].lon)] : null;
+  } catch { return null; }
+}
+const fmtKm = (m) => (m >= 1000 ? `${(m / 1000).toFixed(m >= 10000 ? 0 : 1).replace('.', ',')} км` : `${Math.round(m / 10) * 10} м`);
+const fmtMin = (s, R) => { const m = Math.max(1, Math.round(s / 60)); const MIN = { ru: 'мин', kz: 'мин', en: 'min' }[R]; if (m < 60) return `${m} ${MIN}`; return `${Math.floor(m / 60)} ${{ ru: 'ч', kz: 'сағ', en: 'h' }[R]} ${m % 60} ${MIN}`; };
+const DIRS = { left: { ru: 'налево', kz: 'солға', en: 'left' }, right: { ru: 'направо', kz: 'оңға', en: 'right' }, 'slight left': { ru: 'плавно налево', kz: 'солға қарай', en: 'slight left' }, 'slight right': { ru: 'плавно направо', kz: 'оңға қарай', en: 'slight right' }, 'sharp left': { ru: 'резко налево', kz: 'күрт солға', en: 'sharp left' }, 'sharp right': { ru: 'резко направо', kz: 'күрт оңға', en: 'sharp right' }, straight: { ru: 'прямо', kz: 'тура', en: 'straight' }, uturn: { ru: 'на разворот', kz: 'кері бұрылыс', en: 'U-turn' } };
+function stepText(st, R) {
+  const m = st.maneuver || {}; const road = st.name ? ` ${{ ru: 'на', kz: '→', en: 'onto' }[R]} ${st.name}` : '';
+  const dir = DIRS[m.modifier]?.[R] || '';
+  if (m.type === 'depart') return { ru: 'Начните движение', kz: 'Жолды бастаңыз', en: 'Start' }[R] + road;
+  if (m.type === 'arrive') return { ru: 'Вы на месте', kz: 'Сіз келдіңіз', en: 'You have arrived' }[R];
+  if (m.type === 'roundabout' || m.type === 'rotary') return { ru: 'На кольце — съезд', kz: 'Айналма жолда — шығу', en: 'At the roundabout take exit' }[R] + (m.exit ? ` ${m.exit}` : '') + road;
+  if (['turn', 'end of road', 'fork', 'on ramp', 'off ramp'].includes(m.type)) return `${{ ru: 'Поверните', kz: 'Бұрылыңыз', en: 'Turn' }[R]} ${dir}${road}`;
+  if (m.type === 'merge') return { ru: 'Перестройтесь', kz: 'Қосылыңыз', en: 'Merge' }[R] + road;
+  return `${{ ru: 'Продолжайте', kz: 'Жалғастырыңыз', en: 'Continue' }[R]} ${dir}${road}`.replace(/\s+/g, ' ');
+}
+function makeRouter(map, R) {
+  const Lf = LF(); let layers = [], anim = 0, seq = 0;
+  // На широком экране карточка филиала лежит поверх карты слева — маршрут показываем правее неё
+  // Плавный перелёт к маршруту; если анимация не завершилась (фоновая вкладка) — ставим вид без анимации
+  const fit = (b) => { map.flyToBounds(b, { ...pad(), duration: 0.9 }); const tm = setTimeout(() => map.fitBounds(b, { ...pad(), animate: false }), 1600); map.once('moveend', () => clearTimeout(tm)); };
+  const pad = () => { const c = map?.getContainer().parentElement.querySelector('.bcard'); const wide = innerWidth > 1000 && c; return wide ? { paddingTopLeft: [c.offsetWidth + 50, 50], paddingBottomRight: [50, 50] } : { padding: [50, 50] }; };
+  const calm = () => !!(document.documentElement.dataset.motion || document.documentElement.dataset.reading);
+  const clear = () => { seq++; cancelAnimationFrame(anim); layers.forEach((l) => l.remove()); layers = []; };
+  async function build(from, to, mode, out, fromLabel) {
+    clear(); const my = seq; map?.invalidateSize();
+    out.innerHTML = `<div class="rt-load"><i></i>${esc({ ru: 'Строю маршрут…', kz: 'Маршрут құрылуда…', en: 'Building route…' }[R])}</div>`;
+    let route = null;
+    try {
+      const prof = mode === 'foot' ? 'routed-foot' : 'routed-car';
+      const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 9000);
+      const r = await fetch(`https://routing.openstreetmap.de/${prof}/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson&steps=true`, { signal: ctl.signal });
+      clearTimeout(tm); const j = await r.json(); route = j.routes?.[0] || null;
+    } catch { route = null; }
+    if (my !== seq || !map) return;
+    const startIcon = Lf.divIcon({ className: '', html: '<div class="rt-pin"><i></i></div>', iconSize: [22, 22], iconAnchor: [11, 11] });
+    layers.push(Lf.marker(from, { icon: startIcon, title: fromLabel, keyboard: false }).addTo(map).bindTooltip(esc(fromLabel), { direction: 'top', offset: [0, -10] }));
+    if (!route) {
+      const d = hav(from, to) * 1000;
+      layers.push(Lf.polyline([from, to], { color: '#151515', weight: 3, dashArray: '6 8' }).addTo(map));
+      fit([from, to]);
+      out.innerHTML = `<div class="rt-sum"><b>${fmtKm(d)}</b><span>${esc({ ru: 'по прямой', kz: 'түзу сызық бойынша', en: 'straight line' }[R])}</span></div><p class="small muted">${esc({ ru: 'Сервис маршрутов сейчас недоступен — откройте маршрут в Google Maps или 2GIS ниже.', kz: 'Маршрут қызметі қолжетімсіз — төмендегі сілтемелерді пайдаланыңыз.', en: 'Routing service unavailable — use the links below.' }[R])}</p>`;
+      return;
+    }
+    const pts = route.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+    const casing = Lf.polyline([], { color: '#151515', weight: 9, opacity: 0.85, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(map);
+    const line = Lf.polyline([], { color: mode === 'foot' ? '#7CF29A' : '#F2EEE6', weight: 4, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(map);
+    layers.push(casing, line);
+    fit(Lf.latLngBounds(pts));
+    // Линия «прорисовывается» от начала к концу
+    if (calm()) { casing.setLatLngs(pts); line.setLatLngs(pts); }
+    else {
+      const t0 = performance.now(), dur = Math.min(1800, 500 + pts.length * 3);
+      const tick = (now) => { if (my !== seq) return; const k = Math.min(1, (now - t0) / dur); const e = 1 - (1 - k) ** 3; const n = Math.max(2, Math.ceil(pts.length * e)); casing.setLatLngs(pts.slice(0, n)); line.setLatLngs(pts.slice(0, n)); if (k < 1) anim = requestAnimationFrame(tick); };
+      anim = requestAnimationFrame(tick);
+      setTimeout(() => { if (my === seq) { casing.setLatLngs(pts); line.setLatLngs(pts); } }, 2600); // страховка, если вкладка в фоне
+    }
+    const steps = route.legs.flatMap((l) => l.steps);
+    out.innerHTML = `<div class="rt-sum"><b>${fmtKm(route.distance)}</b><span>${icon('clock')} ${fmtMin(route.duration, R)} · ${esc(mode === 'foot' ? { ru: 'пешком', kz: 'жаяу', en: 'on foot' }[R] : { ru: 'на машине', kz: 'көлікпен', en: 'by car' }[R])}</span></div>
+      <button type="button" class="btn btn-sm rt-play" data-play>▶ ${esc({ ru: 'Проехать маршрут', kz: 'Маршрутпен жүру', en: 'Play the route' }[R])}</button>
+      <details class="rt-steps"><summary>${esc({ ru: 'Пошагово', kz: 'Қадам бойынша', en: 'Step by step' }[R])} · ${steps.length}</summary><ol>${steps.slice(0, 40).map((s) => `<li><button type="button" data-ll="${s.maneuver.location[1]},${s.maneuver.location[0]}"><span>${esc(stepText(s, R))}</span><small>${s.distance ? fmtKm(s.distance) : ''}</small></button></li>`).join('')}</ol></details>`;
+    out.querySelectorAll('[data-ll]').forEach((li) => li.addEventListener('click', () => { const [la, lo] = li.dataset.ll.split(',').map(Number); map.flyTo([la, lo], 16, { duration: 0.7 }); }));
+    // «Проехать маршрут»: метка движется по линии, карта следует за ней
+    out.querySelector('[data-play]').onclick = () => {
+      cancelAnimationFrame(anim); casing.setLatLngs(pts); line.setLatLngs(pts);
+      const car = Lf.marker(pts[0], { icon: Lf.divIcon({ className: '', html: '<div class="rt-car"></div>', iconSize: [18, 18], iconAnchor: [9, 9] }), interactive: false, keyboard: false }).addTo(map); layers.push(car);
+      if (calm()) { car.setLatLng(pts[pts.length - 1]); map.flyTo(pts[pts.length - 1], 15); return; }
+      map.flyTo(pts[0], Math.max(map.getZoom(), 14), { duration: 0.6 });
+      const t0 = performance.now() + 700, dur = Math.min(14000, 3000 + pts.length * 12);
+      const tick = (now) => {
+        if (my !== seq) return;
+        const k = Math.max(0, Math.min(1, (now - t0) / dur)); const p = pts[Math.min(pts.length - 1, Math.floor(k * (pts.length - 1)))];
+        car.setLatLng(p); if (k > 0) map.panTo(p, { animate: false });
+        if (k < 1) anim = requestAnimationFrame(tick); else fit(Lf.latLngBounds(pts));
+      };
+      anim = requestAnimationFrame(tick);
+    };
+  }
+  return { build, clear };
+}
+
 export async function branches() {
   const list = S.meta?.branches || (await api('/api/meta')).branches;
   const sel0 = new URLSearchParams(location.search).get('b');
@@ -138,8 +223,8 @@ export async function branches() {
   return {
     title: t('nav.branches'), html,
     after(root) {
-      let type = 'all', q = '', sel = sel0, me = null, line = null, alive = true;
-      const map = baseMap(root.querySelector('#map'));
+      let type = 'all', q = '', sel = sel0, me = null, alive = true; const cleanups = [];
+      const map = baseMap(root.querySelector('#map'), { sepia: true });
       if (!map) root.querySelector('#map').innerHTML = `<div class="map-fallback"><div>${icon('map')}<p>${esc({ ru: 'Карта недоступна. Воспользуйтесь списком и внешними ссылками на маршрут.', kz: 'Карта қолжетімсіз. Тізімді пайдаланыңыз.', en: 'Map unavailable. Use the list and external route links.' }[R])}</p></div></div>`;
       const markers = {};
       if (map) list.forEach((b) => { markers[b.slug] = LF().marker([b.lat, b.lng], { icon: pinIcon(b), title: tr(b.name), keyboard: true, alt: tr(b.name) }).addTo(map).on('click', () => select(b.slug)); });
@@ -149,44 +234,66 @@ export async function branches() {
         root.querySelector('[data-items]').innerHTML = f.length ? f.map((b) => `<button class="bitem" role="listitem" data-b="${b.slug}" aria-pressed="${b.slug === sel}"><b>${esc(tr(b.name))}${trBadge(b.name)}</b><span>${esc(b.address)}</span>${me ? `<span class="tag" style="margin-top:4px">${hav(me, [b.lat, b.lng]).toFixed(0)} км</span>` : ''}</button>`).join('') : `<div class="empty small">${esc(t('cat.noResults'))}</div>`;
         Object.entries(markers).forEach(([slug, m]) => { const vis = f.some((b) => b.slug === slug); m.setOpacity(vis ? 1 : 0.25); });
       };
-      const routeLinks = (b, origin, mode = 'driving') => {
+      const routeLinks = (b, origin, mode = 'car') => {
         const dest = `${b.lat},${b.lng}`;
-        const g = `https://www.google.com/maps/dir/?api=1${origin ? '&origin=' + encodeURIComponent(origin) : ''}&destination=${encodeURIComponent(dest)}&travelmode=${mode}`;
-        const osm = `https://www.openstreetmap.org/directions?engine=${mode === 'walking' ? 'fossgis_osrm_foot' : 'fossgis_osrm_car'}&route=${origin && /^-?\d/.test(origin) ? encodeURIComponent(origin.replace(',', ',')) : ''}%3B${encodeURIComponent(dest)}`;
+        const g = `https://www.google.com/maps/dir/?api=1${origin ? '&origin=' + encodeURIComponent(origin) : ''}&destination=${encodeURIComponent(dest)}&travelmode=${mode === 'foot' ? 'walking' : 'driving'}`;
         const gis = `https://2gis.kz/search/${encodeURIComponent(b.address)}`;
-        return `<div class="row" style="gap:6px"><a class="btn btn-sm btn-accent" href="${g}" target="_blank" rel="noopener">${icon('route')}Google Maps ↗</a><a class="btn btn-sm" href="${gis}" target="_blank" rel="noopener">2GIS ↗</a><a class="btn btn-sm" href="${osm}" target="_blank" rel="noopener">OSM ↗</a></div>`;
+        return `<div class="row" style="gap:6px"><a class="btn btn-sm" href="${g}" target="_blank" rel="noopener">Google Maps ↗</a><a class="btn btn-sm" href="${gis}" target="_blank" rel="noopener">2GIS ↗</a></div>`;
       };
+      const RT = makeRouter(map, R);
+      cleanups.push(() => RT.clear());
+      // Карта меняет размер вместе с раскладкой (телефон, карточка филиала) — Leaflet нужно об этом сказать
+      if (map && 'ResizeObserver' in window) { const ro = new ResizeObserver(() => map.invalidateSize()); ro.observe(root.querySelector('#map')); cleanups.push(() => ro.disconnect()); }
       function select(slug, fly = true) {
         if (!alive) return;
         sel = slug; const b = list.find((x) => x.slug === slug); if (!b) return;
         history.replaceState(null, '', L('branches?b=' + slug));
         drawList();
         Object.entries(markers).forEach(([s, m]) => m.setIcon(pinIcon(list.find((x) => x.slug === s), s === slug)));
-        if (map && fly) map.flyTo([b.lat, b.lng], 11, { duration: 0.6 });
-        const dist = me ? hav(me, [b.lat, b.lng]) : null;
+        if (map && fly) map.flyTo([b.lat, b.lng], 11, { duration: 0.9 });
+        RT.clear();
+        const others = list.filter((x) => x.slug !== b.slug);
         root.querySelector('[data-card]').innerHTML = `<div class="bcard" role="dialog" aria-label="${esc(tr(b.name))}"><div class="row" style="justify-content:space-between;align-items:start;flex-wrap:nowrap"><div><span class="tag">${esc(X(TYPES[b.type]))}</span><h2 style="font-size:1.15rem;margin:8px 0 6px">${esc(tr(b.name))}</h2></div><button class="icon-btn" data-cx aria-label="${esc(t('close'))}" style="width:36px;height:36px">${icon('x')}</button></div>
-          <div class="kv small"><div>${esc({ ru: 'Адрес', kz: 'Мекенжай', en: 'Address' }[R])}</div><div>${esc(b.address)}</div><div>${esc({ ru: 'Телефон', kz: 'Телефон', en: 'Phone' }[R])}</div><div>${b.phone.match(/\d/) ? `<a href="tel:${esc(b.phone.replace(/\D/g, ''))}">${esc(b.phone)}</a>` : esc(b.phone)}</div><div>E-mail</div><div><a href="mailto:${esc(b.email)}">${esc(b.email)}</a></div><div>${esc({ ru: 'Руководитель', kz: 'Басшы', en: 'Head' }[R])}</div><div>${esc(b.director)}</div><div>${esc(t('footer.hours'))}</div><div>${esc(b.hours || tr(S.meta?.org?.hours))}</div><div>${esc({ ru: 'Координаты', kz: 'Координаттар', en: 'Coordinates' }[R])}</div><div class="mono">${b.lat.toFixed(4)}, ${b.lng.toFixed(4)} ${b.coordsVerified ? '' : `<span class="tag tag-warn">${esc({ ru: 'приблизительно', kz: 'шамамен', en: 'approx.' }[R])}</span>`}</div></div>
+          <div class="kv small"><div>${esc({ ru: 'Адрес', kz: 'Мекенжай', en: 'Address' }[R])}</div><div>${esc(b.address)}</div><div>${esc({ ru: 'Телефон', kz: 'Телефон', en: 'Phone' }[R])}</div><div>${b.phone.match(/\d/) ? `<a href="tel:${esc(b.phone.replace(/\D/g, ''))}">${esc(b.phone)}</a>` : esc(b.phone)}</div><div>E-mail</div><div><a href="mailto:${esc(b.email)}">${esc(b.email)}</a></div><div>${esc({ ru: 'Руководитель', kz: 'Басшы', en: 'Head' }[R])}</div><div>${esc(b.director)}</div><div>${esc(t('footer.hours'))}</div><div>${esc(b.hours || tr(S.meta?.org?.hours))}</div></div>
           ${b.about ? `<p class="small" style="margin:10px 0">${esc(tr(b.about))}</p>` : ''}
-          <h3 style="font-family:var(--font);font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:14px 0 8px">${esc(t('route'))}</h3>
-          ${dist != null ? `<p class="small" style="margin:0 0 8px"><b>${dist.toFixed(1)} км</b> ${esc({ ru: 'по прямой от вас', kz: 'сізден түзу сызық бойынша', en: 'as the crow flies' }[R])}</p>` : ''}
-          <div class="row" style="gap:6px;margin-bottom:8px"><button class="btn btn-sm" data-geo>${icon('locate')}${esc({ ru: 'Моё местоположение', kz: 'Менің орным', en: 'My location' }[R])}</button><select class="input" data-mode style="width:auto;min-height:36px;padding:4px 8px" aria-label="mode"><option value="driving">${esc({ ru: 'Авто', kz: 'Көлік', en: 'Car' }[R])}</option><option value="transit">${esc({ ru: 'Транспорт', kz: 'Қоғамдық көлік', en: 'Transit' }[R])}</option><option value="walking">${esc({ ru: 'Пешком', kz: 'Жаяу', en: 'Walk' }[R])}</option></select></div>
-          <form class="row" style="gap:6px;margin-bottom:10px;flex-wrap:nowrap" data-from><input class="input" name="from" placeholder="${esc({ ru: 'или введите адрес отправления', kz: 'немесе бастапқы мекенжай', en: 'or enter a start address' }[R])}" style="min-height:36px" aria-label="from"><button class="btn btn-sm">OK</button></form>
-          <div data-links>${routeLinks(b, me ? me.join(',') : '')}</div><p class="small muted" data-geomsg style="margin:8px 0 0"></p></div>`;
-        const card = root.querySelector('.bcard');
-        card.querySelector('[data-cx]').onclick = () => { root.querySelector('[data-card]').innerHTML = ''; };
-        const mode = () => card.querySelector('[data-mode]').value;
-        card.querySelector('[data-mode]').onchange = () => { card.querySelector('[data-links]').innerHTML = routeLinks(b, card.querySelector('[name=from]').value || (me ? me.join(',') : ''), mode()); };
-        card.querySelector('[data-from]').onsubmit = (e) => { e.preventDefault(); card.querySelector('[data-links]').innerHTML = routeLinks(b, e.target.from.value.trim(), mode()); };
-        card.querySelector('[data-geo]').onclick = () => {
-          const msg = card.querySelector('[data-geomsg]');
-          if (!navigator.geolocation) { msg.textContent = { ru: 'Геолокация не поддерживается — введите адрес вручную.', kz: 'Геолокация қолдау көрсетілмейді.', en: 'Geolocation not supported — enter an address.' }[R]; return; }
-          msg.textContent = '…';
-          navigator.geolocation.getCurrentPosition((pos) => {
-            me = [pos.coords.latitude, pos.coords.longitude];
-            if (map) { line?.remove(); line = LF().polyline([me, [b.lat, b.lng]], { color: '#8B5CF6', dashArray: '6 8', weight: 3 }).addTo(map); LF().circleMarker(me, { radius: 7, color: '#1F3D2B', fillColor: '#8B5CF6', fillOpacity: 1 }).addTo(map); map.fitBounds([me, [b.lat, b.lng]], { padding: [40, 40] }); }
-            select(b.slug, false);
-          }, () => { msg.textContent = { ru: 'Доступ к геолокации не предоставлен. Укажите адрес отправления вручную — маршрут откроется во внешнем сервисе.', kz: 'Геолокацияға рұқсат берілмеді. Мекенжайды қолмен енгізіңіз.', en: 'Location access denied. Enter a start address manually.' }[R]; card.querySelector('[name=from]').focus(); }, { timeout: 8000 });
+          <div class="rt">
+            <div class="rt-h"><b>${esc(t('route'))}</b><div class="seg rt-seg" role="group" aria-label="mode"><button type="button" data-mode="car" aria-pressed="true">${esc({ ru: 'Авто', kz: 'Көлік', en: 'Car' }[R])}</button><button type="button" data-mode="foot" aria-pressed="false">${esc({ ru: 'Пешком', kz: 'Жаяу', en: 'Walk' }[R])}</button></div></div>
+            <div class="rt-from"><span class="mlabel">${esc({ ru: 'Откуда', kz: 'Қайдан', en: 'From' }[R])}</span>
+              <div class="row" style="gap:6px"><button type="button" class="btn btn-sm" data-geo>${icon('locate')}${esc({ ru: 'Где я', kz: 'Мен қайдамын', en: 'My location' }[R])}</button><button type="button" class="btn btn-sm" data-pick>${icon('map')}${esc({ ru: 'Точка на карте', kz: 'Картадағы нүкте', en: 'Pick on map' }[R])}</button></div>
+              <select class="input" data-fromb aria-label="from branch"><option value="">${esc({ ru: '…или от другого здания архива', kz: '…немесе басқа ғимараттан', en: '…or from another archive building' }[R])}</option>${others.map((o) => `<option value="${o.slug}">${esc(tr(o.name))}</option>`).join('')}</select>
+              <form data-from class="rt-addr"><input class="input" name="from" placeholder="${esc({ ru: '…или адрес: Усть-Каменогорск, проспект Независимости 1', kz: '…немесе мекенжай', en: '…or an address' }[R])}" aria-label="from address"><button class="btn btn-sm" aria-label="search">${icon('search')}</button></form>
+            </div>
+            <div data-rt-out aria-live="polite"></div>
+            <div data-links style="margin-top:10px">${routeLinks(b, '')}</div>
+            <p class="small muted rt-note">${esc({ ru: 'Маршрут по дорогам рассчитывает сервис OpenStreetMap (FOSSGIS); туда передаются только координаты начала и конца пути.', kz: 'Маршрутты OpenStreetMap қызметі есептейді; тек бастапқы және соңғы нүкте координаттары жіберіледі.', en: 'Road routing by OpenStreetMap (FOSSGIS); only start and end coordinates are sent.' }[R])}</p>
+          </div></div>`;
+        const card = root.querySelector('.bcard'); const out = card.querySelector('[data-rt-out]');
+        let mode = 'car', from = null, fromLabel = '';
+        card.querySelector('[data-cx]').onclick = () => { RT.clear(); root.querySelector('[data-card]').innerHTML = ''; };
+        const run = async () => { if (!from) return; card.querySelector('[data-links]').innerHTML = routeLinks(b, from.join(','), mode); await RT.build(from, [b.lat, b.lng], mode, out, fromLabel); };
+        card.querySelectorAll('[data-mode]').forEach((x) => (x.onclick = () => { mode = x.dataset.mode; card.querySelectorAll('[data-mode]').forEach((y) => y.setAttribute('aria-pressed', String(y === x))); run(); }));
+        card.querySelector('[data-fromb]').onchange = (e) => { const o = list.find((x) => x.slug === e.target.value); if (o) { from = [o.lat, o.lng]; fromLabel = tr(o.name); run(); } };
+        card.querySelector('[data-pick]').onclick = () => {
+          if (!map) return;
+          const el = root.querySelector('#map');
+          out.innerHTML = `<p class="small rt-hint">${icon('map')} ${esc({ ru: 'Кликните по карте — там начнётся маршрут.', kz: 'Картаны басыңыз — маршрут сол жерден басталады.', en: 'Click on the map to set the start.' }[R])}</p>`;
+          el.classList.add('is-picking');
+          map.once('click', (e) => { el.classList.remove('is-picking'); from = [e.latlng.lat, e.latlng.lng]; fromLabel = { ru: 'Точка на карте', kz: 'Картадағы нүкте', en: 'Map point' }[R]; run(); });
         };
+        card.querySelector('[data-from]').onsubmit = async (e) => {
+          e.preventDefault(); const q = e.target.from.value.trim(); if (!q) return;
+          out.innerHTML = `<div class="rt-load"><i></i>…</div>`;
+          const pt = await geocode(q);
+          if (!pt) { out.innerHTML = `<p class="small">${esc({ ru: 'Адрес не найден. Уточните: город, улица, дом — или выберите точку на карте.', kz: 'Мекенжай табылмады.', en: 'Address not found.' }[R])}</p>`; return; }
+          from = pt; fromLabel = q; run();
+        };
+        card.querySelector('[data-geo]').onclick = () => {
+          if (!navigator.geolocation) { out.innerHTML = `<p class="small">${esc({ ru: 'Геолокация не поддерживается — выберите точку на карте или введите адрес.', kz: 'Геолокация қолдау көрсетілмейді.', en: 'Geolocation not supported.' }[R])}</p>`; return; }
+          out.innerHTML = `<div class="rt-load"><i></i>…</div>`;
+          navigator.geolocation.getCurrentPosition((pos) => { me = [pos.coords.latitude, pos.coords.longitude]; from = me; fromLabel = { ru: 'Вы здесь', kz: 'Сіз осындасыз', en: 'You are here' }[R]; run(); drawList(); },
+            () => { out.innerHTML = `<p class="small">${esc({ ru: 'Доступ к геолокации не дан. Выберите точку на карте или введите адрес.', kz: 'Геолокацияға рұқсат жоқ.', en: 'Location access denied.' }[R])}</p>`; }, { timeout: 8000 });
+        };
+        if (me) { from = me; fromLabel = { ru: 'Вы здесь', kz: 'Сіз осындасыз', en: 'You are here' }[R]; run(); }
       }
       root.querySelector('[data-items]').onclick = (e) => { const b = e.target.closest('[data-b]'); if (b) select(b.dataset.b); };
       root.querySelector('[data-bq]').oninput = (e) => { q = e.target.value.trim().toLowerCase(); drawList(); };
@@ -194,7 +301,11 @@ export async function branches() {
       drawList();
       if (map) map.fitBounds(list.map((b) => [b.lat, b.lng]), { padding: [30, 30] });
       const tmr = sel ? setTimeout(() => alive && select(sel), 200) : null;
-      return () => { alive = false; clearTimeout(tmr); if (map) { map.stop(); map.off(); map.remove(); } };
+      // Наведение на строку списка подсвечивает метку на карте
+      const items = root.querySelector('[data-items]');
+      items.addEventListener('pointerover', (e) => { const it = e.target.closest('[data-b]'); Object.entries(markers).forEach(([s2, m]) => m.getElement()?.classList.toggle('is-hot', !!it && s2 === it.dataset.b)); });
+      items.addEventListener('pointerleave', () => Object.values(markers).forEach((m) => m.getElement()?.classList.remove('is-hot')));
+      return () => { alive = false; clearTimeout(tmr); cleanups.forEach((f) => f()); if (map) { map.stop(); map.off(); map.remove(); } };
     },
   };
 }

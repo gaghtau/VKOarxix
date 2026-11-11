@@ -52,7 +52,7 @@ export async function home() {
   <div class="d-corner r" aria-hidden="true"><b data-count>01</b> / 05</div>
 
   <section class="d-intro d-ch" id="ch1" aria-labelledby="hero-title"><div class="crt" data-crt>
-    <div class="crt-body"><div class="crt-screen" data-screen tabindex="-1">${scr ? `<img src="${esc(scr.url)}" alt="" data-frame-img>` : ''}<span class="crt-glare" aria-hidden="true"></span><span class="crt-static" aria-hidden="true"></span>
+    <div class="crt-body"><div class="crt-screen" data-screen tabindex="-1">${scr ? `<img src="${esc(scr.url)}" alt="" data-frame-img><img class="crt-lens" src="${esc(scr.url)}" alt="" aria-hidden="true" data-frame-lens>` : ''}<span class="crt-glare" aria-hidden="true"></span><span class="crt-static" aria-hidden="true"></span>
       <div class="crt-off" aria-hidden="true"><span>${esc(X({ ru: 'НЕТ СИГНАЛА', kz: 'СИГНАЛ ЖОҚ', en: 'NO SIGNAL' }))}</span></div>
       <div class="crt-in">
         <div class="crt-top"><span class="mlabel">${esc(X({ ru: 'Госархив ВКО / открытый архив', kz: 'ШҚО мемархиві / ашық архив', en: 'State Archive EKR / open archive' }))}</span>${scr ? `<a class="crt-cap" data-frame-cap href="${esc(scr.sourceUrl || L('sources'))}" target="_blank" rel="noopener"><b data-frame-no>01 / ${String(FR.length).padStart(2, '0')}</b> <span data-frame-date>${esc(scr.date || '')}</span><span data-frame-title>${esc(cap(scr))}</span></a>` : ''}</div>
@@ -125,11 +125,12 @@ export async function home() {
 // Интерактивный монитор на главной: кадры, питание, «микрофильм», живые подсказки поиска, блик за курсором
 function mountMonitor(root, FR, photos, cap) {
   const crt = root.querySelector('[data-crt]'); if (!crt) return null;
-  const screen = crt.querySelector('[data-screen]'), img = crt.querySelector('[data-frame-img]');
+  const screen = crt.querySelector('[data-screen]'), img = crt.querySelector('[data-frame-img]'), lens = crt.querySelector('[data-frame-lens]');
   const no = crt.querySelector('[data-frame-no]'), date = crt.querySelector('[data-frame-date]'), title = crt.querySelector('[data-frame-title]'), capA = crt.querySelector('[data-frame-cap]');
   const dots = [...crt.querySelectorAll('.crt-dots i')];
   const D = document.documentElement.dataset;
-  const calm = () => !!(D.motion || D.reading || matchMedia('(prefers-reduced-motion: reduce)').matches);
+  // Эффекты выключает переключатель «Без анимации» / «Удобное чтение» в панели доступности
+  const calm = () => !!(D.motion || D.reading);
   const timers = []; let i = 0, auto = null, film = null;
   const pad = (n) => String(n).padStart(2, '0');
 
@@ -145,7 +146,7 @@ function mountMonitor(root, FR, photos, cap) {
     i = (k + FR.length) % FR.length; const m = FR[i].m;
     const pre = new Image(); pre.src = m.url;
     const swap = () => {
-      img.src = m.url; img.alt = '';
+      img.src = m.url; img.alt = ''; if (lens) lens.src = m.url;
       if (no) no.textContent = `${pad(i + 1)} / ${pad(FR.length)}`;
       if (date) date.textContent = m.date || '';
       if (title) title.textContent = cap(m);
@@ -180,7 +181,7 @@ function mountMonitor(root, FR, photos, cap) {
     let d; do { d = photos[Math.floor(Math.random() * photos.length)]; } while (photos.length > 1 && d === film);
     film = d;
     tune(() => {
-      img.src = fileUrl(d.id, 1); screen.classList.add('is-film');
+      img.src = fileUrl(d.id, 1); if (lens) lens.src = img.src; screen.classList.add('is-film');
       if (no) no.textContent = d.cipher || ''; if (date) date.textContent = years(d);
       if (title) title.textContent = tr(d.title).replace(/^[^:]+:\s*/, '').slice(0, 70);
       if (capA) { capA.href = L('catalog/' + d.id); capA.removeAttribute('target'); }
@@ -210,16 +211,19 @@ function mountMonitor(root, FR, photos, cap) {
   });
   input?.addEventListener('keydown', (e) => { if (e.key === 'Escape') { out.hidden = true; } });
 
-  // Блик и лёгкий наклон за курсором (только мышь, без «Без анимации»)
-  const body = crt.querySelector('.crt-body');
-  const move = (e) => {
-    if (calm() || e.pointerType !== 'mouse') return;
-    const r = body.getBoundingClientRect(); const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
-    body.style.setProperty('--gx', `${(x * 100).toFixed(1)}%`); body.style.setProperty('--gy', `${(y * 100).toFixed(1)}%`);
-    body.style.transform = `perspective(1400px) rotateY(${((x - 0.5) * 4).toFixed(2)}deg) rotateX(${((0.5 - y) * 3).toFixed(2)}deg)`;
+  // Картинка на экране реагирует на курсор: сдвигается (параллакс), а под курсором «лупа» проявляет снимок в цвете
+  let tx = 0.5, ty = 0.5;
+  const paint = () => {
+    screen.style.setProperty('--px', `${((tx - 0.5) * -5).toFixed(2)}%`); screen.style.setProperty('--py', `${((ty - 0.5) * -5).toFixed(2)}%`);
+    screen.style.setProperty('--gx', `${(tx * 100).toFixed(1)}%`); screen.style.setProperty('--gy', `${(ty * 100).toFixed(1)}%`);
   };
-  const leave = () => { body.style.transform = ''; };
-  body.addEventListener('pointermove', move); body.addEventListener('pointerleave', leave);
+  const move = (e) => {
+    if (calm() || e.pointerType === 'touch' || crt.classList.contains('is-off')) return;
+    const r = screen.getBoundingClientRect(); tx = (e.clientX - r.left) / r.width; ty = (e.clientY - r.top) / r.height;
+    screen.classList.add('is-hover'); paint();
+  };
+  const leave = () => { screen.classList.remove('is-hover'); tx = ty = 0.5; paint(); };
+  screen.addEventListener('pointermove', move); screen.addEventListener('pointerleave', leave);
 
   return () => { stopAuto(); timers.forEach(clearTimeout); clearTimeout(tmr); };
 }
