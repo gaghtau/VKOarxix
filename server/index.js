@@ -1,4 +1,5 @@
 import express from 'express';
+import compression from 'compression';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readFileSync, createReadStream, existsSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -27,6 +28,7 @@ if (!db.prepare('SELECT 1 FROM users WHERE login=?').get('кана')) {
 if (process.argv.includes('--reset-only')) { console.log('База пересоздана с демо-данными.'); process.exit(0); }
 
 const app = express();
+app.use(compression()); // gzip для HTML, CSS, JS и JSON
 app.disable('x-powered-by');
 app.set('trust proxy', 'loopback');
 const PORT = Number(process.env.PORT || 3000);

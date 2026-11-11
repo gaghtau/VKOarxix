@@ -76,7 +76,7 @@ export function catalog() {
 
       const f = d.facets || {};
       const active = PARAMS.filter((k) => !['q', 'level', 'sort', 'page'].includes(k) && state[k]);
-      fl.innerHTML = `${active.length ? `<button class="btn btn-sm" style="width:100%;margin-bottom:12px" data-reset>${icon('reset')}${esc(t('cat.reset'))}</button>` : ''}
+      fl.innerHTML = `<h2 class="sr-only">${esc(t('cat.filters'))}</h2>${active.length ? `<button class="btn btn-sm" style="width:100%;margin-bottom:12px" data-reset>${icon('reset')}${esc(t('cat.reset'))}</button>` : ''}
         <label class="fopt"><input type="checkbox" data-digital ${state.digital === '1' ? 'checked' : ''}><span>${esc(t('cat.digital'))}</span></label>
         ${facetBlock('type', t('cat.type'), f.type, (v) => t('types.' + v))}
         <h3>${esc(t('cat.period'))}</h3><div class="row" style="gap:6px">${Object.keys(f.decade || {}).sort().map((dec) => `<button type="button" class="chip ${state.from === dec && state.to === String(+dec + 9) ? 'on' : ''}" data-decade="${dec}">${dec}-е</button>`).join('')}</div>

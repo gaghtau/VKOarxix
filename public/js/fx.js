@@ -85,7 +85,7 @@ export function initFx(root) {
     // 5) Тезис: слова проявляются по мере прокрутки
     root.querySelectorAll('[data-highlight]').forEach((p) => {
       if (!SplitText) return;
-      const st = new SplitText(p, { type: 'words', wordsClass: 'w' }); splits.push(st);
+      const st = new SplitText(p, { type: 'words', wordsClass: 'w', aria: 'none' }); splits.push(st);
       gsap.fromTo(st.words, { opacity: 0.14 }, { opacity: 1, stagger: 0.12, ease: 'none', scrollTrigger: { trigger: p, start: 'top 80%', end: 'bottom 45%', scrub: true } });
     });
 

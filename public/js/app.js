@@ -118,7 +118,7 @@ function chrome() {
   document.querySelector('.skip').textContent = t('skip');
   const langs = `<div class="lang" role="group" aria-label="${esc(t('lang'))}">${LANGS.map((l) => `<a data-l="${l}" href="/${l}/" hreflang="${l === 'kz' ? 'kk' : l}" aria-current="${l === S.lang}" lang="${l === 'kz' ? 'kk' : l}">${l.toUpperCase()}</a>`).join('')}</div>`;
   document.getElementById('chrome-top').innerHTML = `
-  <div class="topbar"><div class="wrap">
+  <div class="topbar" role="region" aria-label="${esc({ ru: 'Служебная панель', kz: 'Қызметтік панель', en: 'Utility bar' }[S.lang])}"><div class="wrap">
     <span class="ti">${icon('phone')}<a href="tel:+77232255976">${esc(m?.phoneReception || '8 (7232) 25-59-76')}</a></span>
     <span class="sep"></span>
     <button type="button" class="a11y-btn" data-a11y-open aria-haspopup="dialog" aria-expanded="false">${icon('eye')}<span>${esc({ ru: 'Для слабовидящих', kz: 'Нашар көретіндерге', en: 'Accessibility' }[S.lang])}</span></button>
@@ -157,10 +157,10 @@ function chrome() {
       <div><div class="row" style="gap:12px;margin-bottom:14px"><span class="logo-mark">${logoMark}</span><b style="color:#F3EBDB;font-family:var(--serif);font-size:1.05rem">${esc(tr(o.name))}</b></div>
         <p class="small">${esc(tr(o.legal))}</p><p class="small">${esc(t('footer.about'))}</p>
         <div class="social">${(o.social || []).map((s) => `<a href="${esc(s.url)}" target="_blank" rel="noopener" aria-label="${esc(s.label)}">${icon(s.id)}</a>`).join('')}</div></div>
-      <div><h4>${esc(t('footer.sections'))}</h4><ul>${[['cat.title', 'catalog'], ['nav.exhibitions', 'exhibitions'], ['menu.memory', 'memory'], ['nav.news', 'news'], ['nav.branches', 'branches'], ['menu.calendar', 'calendar']].map(([k, h]) => { const v = t(k); return `<li><a href="${L(h)}">${esc(Array.isArray(v) ? v[0] : v)}</a></li>`; }).join('')}</ul></div>
-      <div><h4>${esc(t('footer.visitors'))}</h4><ul>${MENUS.info.map(([k, h]) => `<li><a href="${L(h)}">${esc(t('menu.' + k)[0])}</a></li>`).join('')}</ul>
-        <h4 style="margin-top:22px">${esc(t('footer.gov'))}</h4><ul><li><a href="https://www.akorda.kz" target="_blank" rel="noopener">Akorda.kz</a></li><li><a href="https://egov.kz" target="_blank" rel="noopener">eGov.kz</a></li><li><a href="https://adilet.zan.kz" target="_blank" rel="noopener">Adilet.zan.kz</a></li><li><a href="https://www.gov.kz/memleket/entities/vko" target="_blank" rel="noopener">${esc({ ru: 'Акимат ВКО', kz: 'ШҚО әкімдігі', en: 'EKR Akimat' }[S.lang])}</a></li></ul></div>
-      <div><h4>${esc(t('footer.contacts'))}</h4><ul class="small">
+      <div><h2 class="fh">${esc(t('footer.sections'))}</h2><ul>${[['cat.title', 'catalog'], ['nav.exhibitions', 'exhibitions'], ['menu.memory', 'memory'], ['nav.news', 'news'], ['nav.branches', 'branches'], ['menu.calendar', 'calendar']].map(([k, h]) => { const v = t(k); return `<li><a href="${L(h)}">${esc(Array.isArray(v) ? v[0] : v)}</a></li>`; }).join('')}</ul></div>
+      <div><h2 class="fh">${esc(t('footer.visitors'))}</h2><ul>${MENUS.info.map(([k, h]) => `<li><a href="${L(h)}">${esc(t('menu.' + k)[0])}</a></li>`).join('')}</ul>
+        <h2 class="fh" style="margin-top:22px">${esc(t('footer.gov'))}</h2><ul><li><a href="https://www.akorda.kz" target="_blank" rel="noopener">Akorda.kz</a></li><li><a href="https://egov.kz" target="_blank" rel="noopener">eGov.kz</a></li><li><a href="https://adilet.zan.kz" target="_blank" rel="noopener">Adilet.zan.kz</a></li><li><a href="https://www.gov.kz/memleket/entities/akimvko?lang=ru" target="_blank" rel="noopener">${esc({ ru: 'Акимат ВКО', kz: 'ШҚО әкімдігі', en: 'EKR Akimat' }[S.lang])}</a></li></ul></div>
+      <div><h2 class="fh">${esc(t('footer.contacts'))}</h2><ul class="small">
         <li>${icon('pin', 'sr-hide')}${esc(tr(o.address))}</li><li><a href="tel:+77232255976">${esc(o.phoneReception || '')}</a></li><li><a href="mailto:${esc(o.email || '')}">${esc(o.email || '')}</a></li>
         <li><b style="color:#F3EBDB">${esc(t('footer.hours'))}:</b> ${esc(tr(o.hours))}</li><li><b style="color:#F3EBDB">${esc(t('footer.reading'))}:</b> ${esc(tr(o.readingHours))}</li></ul></div>
     </div>

@@ -20,6 +20,7 @@
     "logs": "node tools/ctl.mjs logs"
   },
   "dependencies": {
+    "compression": "^1.7.5",
     "express": "^4.21.2",
     "gsap": "^3.15.0",
     "leaflet": "^1.9.4"

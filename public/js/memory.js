@@ -231,7 +231,7 @@ export async function branches() {
       const filtered = () => list.filter((b) => (type === 'all' || b.type === type) && (!q || (tr(b.name) + ' ' + b.city + ' ' + b.address).toLowerCase().includes(q)));
       const drawList = () => {
         const f = filtered();
-        root.querySelector('[data-items]').innerHTML = f.length ? f.map((b) => `<button class="bitem" role="listitem" data-b="${b.slug}" aria-pressed="${b.slug === sel}"><b>${esc(tr(b.name))}${trBadge(b.name)}</b><span>${esc(b.address)}</span>${me ? `<span class="tag" style="margin-top:4px">${hav(me, [b.lat, b.lng]).toFixed(0)} км</span>` : ''}</button>`).join('') : `<div class="empty small">${esc(t('cat.noResults'))}</div>`;
+        root.querySelector('[data-items]').innerHTML = f.length ? f.map((b) => `<div role="listitem" class="bli"><button class="bitem" data-b="${b.slug}" aria-pressed="${b.slug === sel}"><b>${esc(tr(b.name))}${trBadge(b.name)}</b><span>${esc(b.address)}</span>${me ? `<span class="tag" style="margin-top:4px">${hav(me, [b.lat, b.lng]).toFixed(0)} км</span>` : ''}</button></div>`).join('') : `<div class="empty small">${esc(t('cat.noResults'))}</div>`;
         Object.entries(markers).forEach(([slug, m]) => { const vis = f.some((b) => b.slug === slug); m.setOpacity(vis ? 1 : 0.25); });
       };
       const routeLinks = (b, origin, mode = 'car') => {
