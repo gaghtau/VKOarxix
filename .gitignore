@@ -14,3 +14,4 @@ materials/old-site/*.jpeg
 materials/old-site/*.png
 materials/commons/*.jpg
 public/img/uploads/
+.run/

@@ -11,10 +11,23 @@ Code Masters Hackathon 9.0 · кейс Государственного архи
 
 ## Запуск
 
-Нужен Node.js ≥ 22.5 (используется встроенный SQLite `node:sqlite`). Других зависимостей, кроме Express и Leaflet, нет.
+Нужен Node.js ≥ 22.5 (используется встроенный SQLite `node:sqlite`). Зависимости — Express, Leaflet и GSAP; при первом включении они ставятся сами.
+
+**Включить и выключить одной командой** (сайт работает в фоне, терминал можно закрыть):
+
+| Действие | Windows (PowerShell в папке проекта) | Любая ОС |
+|---|---|---|
+| Включить | `.\on` | `npm run on` |
+| Выключить | `.\off` | `npm run off` |
+| Перезапустить после правок | `.\restart` | `npm run restart` |
+| Работает ли сейчас | `.\status` | `npm run status` |
+| Журнал сервера | `.\logs` | `npm run logs` |
+
+Сайт: http://localhost:3000/ru/ · кабинет редактора: http://localhost:3000/cabinet · журнал: `.run/server.log`.
+
+Запуск в текущем окне (останавливается по Ctrl+C):
 
 ```bash
-npm install
 npm start          # http://localhost:3000/ru/   админ-панель: http://localhost:3000/admin
 npm run reset      # пересоздать базу с демо-данными
 ```

@@ -12,7 +12,12 @@
     "start": "node --no-warnings server/index.js",
     "dev": "node --no-warnings --watch server/index.js",
     "reset": "node --no-warnings server/index.js --reset-only",
-    "test": "node --no-warnings --test tests/"
+    "test": "node --no-warnings --test tests/",
+    "on": "node tools/ctl.mjs on",
+    "off": "node tools/ctl.mjs off",
+    "restart": "node tools/ctl.mjs restart",
+    "status": "node tools/ctl.mjs status",
+    "logs": "node tools/ctl.mjs logs"
   },
   "dependencies": {
     "express": "^4.21.2",
