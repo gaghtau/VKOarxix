@@ -136,7 +136,8 @@ const photoLink = (src, title) => {
 export function applyImageMode(scope) {
   if (!photoMode() || !scope) return;
   scope.querySelectorAll('img').forEach((img) => {
-    if (img.closest('.photo-page, .leaflet-container, .logo-mark, .compare')) return;
+    // декоративные копии (например, «лупа» на мониторе главной) не превращаем во вторую ссылку «Открыть фото»
+    if (img.getAttribute('aria-hidden') === 'true' || img.closest('.photo-page, .leaflet-container, .logo-mark, .compare')) return;
     const src = img.closest('[data-zoom-src]')?.dataset.zoomSrc || img.getAttribute('src');
     const title = img.alt || img.closest('[data-zoom-title]')?.dataset.zoomTitle || '';
     const inLink = img.closest('a');

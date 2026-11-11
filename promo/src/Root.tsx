@@ -7,7 +7,7 @@ export const Root: React.FC = () => {
     <Composition
       id="AiflPromo"
       component={ThemedFilm}
-      defaultProps={{theme: 'ink-press'}}
+      defaultProps={{theme: 'ink-press', bgm: true}}
       durationInFrames={AIFL_TOTAL}
       fps={30}
       width={1920}

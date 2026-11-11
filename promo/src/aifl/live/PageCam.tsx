@@ -1,5 +1,6 @@
+import { useSceneFrame } from '../timemap';
 import { useVisualTheme, themePaint, themeAsset } from '../../themes/visual-theme';
-import { AbsoluteFill, Img, interpolate, staticFile, useCurrentFrame, Easing } from 'remotion';
+import { AbsoluteFill, Img, interpolate, staticFile, Easing } from 'remotion';
 
 export type CamKey = {
   frame: number;
@@ -40,7 +41,7 @@ export const PageCam: React.FC<{
   const paint = (css: string) => themePaint(theme, css);
   const asset = (src: string) => themeAsset(theme, src);
 
-  const frame = useCurrentFrame();
+  const frame = useSceneFrame();
   // find segment
   let a = keys[0], b = keys[keys.length - 1];
   for (let i = 0; i < keys.length - 1; i++) {

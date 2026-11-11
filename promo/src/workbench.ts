@@ -23,6 +23,7 @@ import { SceneDetail, SCENE_DETAIL_DEFAULTS } from './aifl/live/SceneDetail';
 import { ScenePapers, SCENE_PAPERS_DEFAULTS } from './aifl/live/ScenePapers';
 import { SceneThenNow, SCENE_THEN_NOW_DEFAULTS } from './aifl/live/SceneThenNow';
 import { SceneRoute } from './aifl/live/SceneRoute';
+import { SceneQuad } from './aifl/live/SceneQuad';
 import { SceneOutroLive, SCENE_OUTRO_DEFAULTS } from './aifl/live/SceneOutroLive';
 import { PaperTitleCard, TITLE_CARD_DEFAULTS } from './aifl/PaperTitleCard';
 import { Caption, CAPTION_DEFAULTS } from './aifl/Caption';
@@ -168,12 +169,11 @@ const PAPER_WORKBENCH = {
   background: '#EFE8DA',
   shots: [
     scene('morning', '1 Логотип → стол → записка-герой', SceneOpen, D.open, SCHEMAS.open),
-    title('card1', 'Титр 1 · одна память'),
     scene('table', '3 Колода фондов → поиск → клик', SceneFlyIn, D.flyin, SCHEMAS.flyin),
-    scene('macro', '4 Справка о личности', SceneDetail, D.detail, SCHEMAS.detail),
-    title('card2', 'Титр 2 · 130 лет'),
+    scene('macro', '3 Справка о личности', SceneDetail, D.detail, SCHEMAS.detail),
+    scene('quad', '4 «Дроп»: четыре экрана', SceneQuad, D.route, SCHEMAS.route),
+    title('card2', 'Титр · 130 лет'),
     scene('thennow', '6 Тогда и сейчас', SceneThenNow, D.thennow, SCHEMAS.thennow),
-    title('card3', 'Титр 3 · маршрут'),
     scene('route', '8 Маршрут на карте', SceneRoute, D.route, SCHEMAS.route),
     scene('chart', '9 Прейскурант стопкой', ScenePapers, D.papers, SCHEMAS.papers),
     scene('outro', '10 Финал: элементы вокруг логотипа', SceneOutroLive, D.outro, SCHEMAS.outro),

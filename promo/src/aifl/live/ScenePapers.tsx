@@ -1,6 +1,7 @@
+import { useSceneFrame } from '../timemap';
 import { MONO_FONT } from '../fonts';
 import { useVisualTheme, themePaint, themeAsset, sceneDefaults } from '../../themes/visual-theme';
-import { AbsoluteFill, Img, interpolate, useCurrentFrame, Easing } from 'remotion';
+import { AbsoluteFill, Img, interpolate, Easing } from 'remotion';
 import { PageCam, CamKey } from './PageCam';
 import { AIFL_SHOTS } from '../Main';
 import layout from '../live-layout.json';
@@ -51,7 +52,7 @@ export const ScenePapers: React.FC<ScenePapersProps> = (props) => {
   const asset = (src: string) => themeAsset(theme, src);
   const MONO = (paperStyle ? MONO_FONT : theme.font);
   const { title, subtitle, counterSize, amber: AMBER, muted } = { ...sceneDefaults(theme, 'chart', SCENE_PAPERS_DEFAULTS), ...props };
-  const frame = useCurrentFrame();
+  const frame = useSceneFrame();
 
   // how many cards have already landed (t reached 1) — drives the counter
   const landedCount = CUES.filter((c) => frame >= c + DUR - 6).length; // касание видно раньше конца перелёта

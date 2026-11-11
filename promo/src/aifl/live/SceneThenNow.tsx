@@ -1,3 +1,4 @@
+import { useSceneFrame } from '../timemap';
 // «Тогда и сейчас» — адаптация demos/data/before-after-slider-scrub (BeforeAfterSliderScrub.tsx).
 // Сохранены тайминги и «критичные параметры» карточки: 4f замаха назад, 12f рывок с перелётом до 76 %, 12f отскок к 70 %,
 // пауза, медленный проход 48f до 40 % (≈5:1 к рывку), ≥40f настоящего покоя; граница раскрытия
@@ -5,7 +6,7 @@
 // Отличия: вместо FakeDashboard — гравюра 1891 г. («тогда», базовый слой) и фото сегодняшнего
 // Усть-Каменогорска («сейчас», раскрывается слева от ручки); метки и цвета — токены сайта.
 import React from 'react';
-import { AbsoluteFill, Img, staticFile, useCurrentFrame } from 'remotion';
+import { AbsoluteFill, Img, staticFile } from 'remotion';
 import { DISPLAY, MONO_FONT } from '../fonts';
 import { EASE, Grain, SpeedBlur, mix, ramp, softShadow, velocity } from '../Polish';
 
@@ -55,12 +56,12 @@ const Tag: React.FC<{ label: string; x: number; dark?: boolean }> = ({ label, x,
 );
 
 // фото заполняет кадр целиком (cover) и очень медленно «дышит» — одинаково в обоих слоях
-const Photo: React.FC<{ src: string; filter?: string; frame: number }> = ({ src, filter, frame }) => (
+const Photo: React.FC<{ src: string; filter?: string; frame: number; zoom?: number }> = ({ src, filter, frame, zoom = 1 }) => (
   <Img
     src={staticFile(`textures/live/${src}`)}
     style={{
       position: 'absolute', inset: 0, width: W, height: H, objectFit: 'cover',
-      transform: `scale(${1.0 + 0.012 * ramp(frame, 0, THEN_NOW_DURATION, EASE.linear)})`, // почти без увеличения: гравюра 1600px
+      transform: `scale(${zoom * (1.0 + 0.012 * ramp(frame, 0, THEN_NOW_DURATION, EASE.linear))})`, // гравюра чуть крупнее: рамка скана за кадром // почти без увеличения: гравюра 1600px
       filter,
     }}
   />
@@ -68,7 +69,7 @@ const Photo: React.FC<{ src: string; filter?: string; frame: number }> = ({ src,
 
 export const SceneThenNow: React.FC<Partial<typeof SCENE_THEN_NOW_DEFAULTS>> = (props) => {
   const { thenLabel, nowLabel, place } = { ...SCENE_THEN_NOW_DEFAULTS, ...props };
-  const frame = useCurrentFrame();
+  const frame = useSceneFrame();
   const p = posAt(frame);
   const x = (p / 100) * W;
   const vx = velocity((f) => (posAt(f) / 100) * W, frame);
@@ -80,7 +81,7 @@ export const SceneThenNow: React.FC<Partial<typeof SCENE_THEN_NOW_DEFAULTS>> = (
   return (
     <AbsoluteFill style={{ background: PAPER, overflow: 'hidden' }}>
       {/* «тогда»: гравюра 1891 г. в сепию бумаги сайта */}
-      <Photo src="uk-1891.jpg" frame={frame} filter="sepia(0.35) contrast(1.05) brightness(1.02)" />
+      <Photo src="uk-1891.jpg" frame={frame} zoom={1.07} filter="sepia(0.35) contrast(1.05) brightness(1.02)" />
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(239,232,218,0.10), rgba(239,232,218,0.22))' }} />
       <Tag label={thenLabel} x={W - 470} />
 

@@ -1,6 +1,7 @@
+import { useSceneFrame } from './timemap';
 import { DISPLAY, MONO_FONT } from './fonts';
 import { useVisualTheme, themePaint, sceneDefaults } from '../themes/visual-theme';
-import { AbsoluteFill, interpolate, useCurrentFrame, Easing } from 'remotion';
+import { AbsoluteFill, interpolate, Easing } from 'remotion';
 import { DigitRoll } from './DigitRoll';
 
 
@@ -37,7 +38,7 @@ export const PaperTitleCard: React.FC<{
   const MONO = (paperStyle ? MONO_FONT : theme.font);
   const {duration, words, sub, subDigits, ...style} = props;
   const {fontSize, ink, accent, muted, paper} = {...sceneDefaults(theme, 'title-card', TITLE_CARD_DEFAULTS), ...style};
-  const frame = useCurrentFrame();
+  const frame = useSceneFrame();
   const fadeOut = interpolate(frame, [duration - 8, duration], [1, 0], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',

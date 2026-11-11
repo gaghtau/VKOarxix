@@ -1,6 +1,7 @@
+import { useSceneFrame } from '../timemap';
 import { UI_FONT } from '../fonts';
 import { useVisualTheme, themePaint, themeAsset, sceneDefaults } from '../../themes/visual-theme';
-import { Img, interpolate, useCurrentFrame, Easing, getRemotionEnvironment } from 'remotion';
+import { Img, interpolate, Easing, getRemotionEnvironment } from 'remotion';
 import { PageCam, CamKey } from './PageCam';
 import layout from '../live-layout.json';
 
@@ -76,8 +77,8 @@ const PILE_CY = PILE.y + 70;
 const CAM_KEYS: CamKey[] = [
   { frame: 0, cx: PILE_CX - 30, cy: PILE_CY + 60, zoom: 1.95, rotX: 46, rotY: -30, rotZ: 9, persp: 1100 }, // low side view of the stack, left-oblique
   { frame: 34, cx: PILE_CX + 30, cy: PILE_CY + 40, zoom: 1.85, rotX: 42, rotY: 26, rotZ: -7, persp: 1100 }, // orbit around the pile to a right-oblique
-  { frame: 62, cx: 960, cy: 900, zoom: 0.92, rotX: 26, rotY: 0, rotZ: 2, persp: 1300 }, // pull back — page revealed, dealing underway
-  { frame: 82, cx: 955, cy: 1250, zoom: 0.84, rotX: 14, rotY: 0, rotZ: 0, persp: 1300 }, // speeding up
+  { frame: 62, cx: 960, cy: 900, zoom: 1.04, rotX: 26, rotY: 0, rotZ: 2, persp: 1300 }, // без полос по краям // pull back — page revealed, dealing underway
+  { frame: 82, cx: 955, cy: 1250, zoom: 0.96, rotX: 14, rotY: 0, rotZ: 0, persp: 1300 }, // speeding up
   { frame: 98, cx: 960, cy: 1420, zoom: 0.86, rotX: 8, rotY: 0, rotZ: 0, persp: 1300 }, // arrives on the full board, slight tilt keeps the page edge out of frame
   { frame: 113, cx: 960, cy: 1420, zoom: 0.86, rotX: 8, rotY: 0, rotZ: 0, persp: 1300 }, // 0.5s REST on the full board
   { frame: 124, cx: 960, cy: 600, zoom: 1.0, rotX: 0, rotY: 0, rotZ: 0, persp: 1300 }, // swoosh back up to the search form
@@ -94,7 +95,7 @@ export const SceneFlyIn: React.FC<SceneFlyInProps> = (props) => {
   const FIELD = paint('#FBF8F1'); // search-box interior
   const METAL_PREVIEW = paint('#24211c');
   const { query: QUERY, accent } = { ...sceneDefaults(theme, 'table', SCENE_FLYIN_DEFAULTS), ...props };
-  const frame = useCurrentFrame();
+  const frame = useSceneFrame();
   const { isRendering } = getRemotionEnvironment();
 
   // DOF fades out over the straightening leg of the scroll (82 → 98)

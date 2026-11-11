@@ -1,10 +1,11 @@
+import { useSceneFrame } from '../timemap';
 // Маршрут на карте филиалов. Точной карточки в библиотеке нет — сцена собрана из проверенных
 // деталей шаблона: PageCam (2.5D-камера над настоящим снимком страницы), «подъём и посадка» элемента
 // с жёсткой тенью (как у записки-героя) и шов-подсветка при посадке (row-embed).
 // Линия маршрута рисуется по 61 точке, снятой с настоящей SVG-линии Leaflet (live-layout.json),
 // поэтому она ложится ровно на улицы снимка без маршрута.
 import React from 'react';
-import { AbsoluteFill, Easing, Img, interpolate, staticFile, useCurrentFrame } from 'remotion';
+import { AbsoluteFill, Easing, Img, interpolate, staticFile } from 'remotion';
 import { PageCam, CamKey } from './PageCam';
 import layout from '../live-layout.json';
 
@@ -41,7 +42,7 @@ const GREEN = '#7CF29A';
 const SUM_AT = { x: Math.min(END[0] - SUM.w * 0.5, 1500 - SUM.w), y: maxY + 46 };
 
 export const SceneRoute: React.FC = () => {
-  const frame = useCurrentFrame();
+  const frame = useSceneFrame();
   const draw = interpolate(frame, [DRAW_FROM, DRAW_TO], [0, 1], {
     extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.bezier(0.45, 0, 0.25, 1),
   });

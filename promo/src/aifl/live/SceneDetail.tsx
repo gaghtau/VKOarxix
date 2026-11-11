@@ -1,6 +1,7 @@
+import { useSceneFrame } from '../timemap';
 import { useVisualTheme, themePaint, themeAsset, sceneDefaults } from '../../themes/visual-theme';
 import React from 'react';
-import { interpolate, useCurrentFrame, Easing } from 'remotion';
+import { interpolate, Easing } from 'remotion';
 import { PageCam, CamKey } from './PageCam';
 import layout from '../live-layout.json';
 
@@ -32,7 +33,7 @@ export const SceneDetail: React.FC<SceneDetailProps> = (props) => {
   const asset = (src: string) => themeAsset(theme, src);
   const detailSrc = asset('textures/live/person-full.png');
   const { accent } = { ...sceneDefaults(theme, 'macro', SCENE_DETAIL_DEFAULTS), ...props };
-  const frame = useCurrentFrame();
+  const frame = useSceneFrame();
   const df = frame;
 
   return (

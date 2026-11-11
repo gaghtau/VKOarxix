@@ -1,6 +1,7 @@
+import { useSceneFrame } from '../timemap';
 import { DISPLAY, MONO_FONT } from '../fonts';
 import { useVisualTheme, themePaint, themeAsset, sceneDefaults } from '../../themes/visual-theme';
-import { AbsoluteFill, Img, interpolate, useCurrentFrame, Easing } from 'remotion';
+import { AbsoluteFill, Img, interpolate, Easing } from 'remotion';
 import { AIFL_SHOTS } from '../Main';
 import { PageCam, CamKey } from './PageCam';
 import layout from '../live-layout.json';
@@ -42,8 +43,8 @@ const RADIUS = 2; // записки на сайте почти без скруг
 // The focal page-point sits a touch LEFT of the card centre so the card lands
 // slightly right of screen-centre, foregrounding its near (left) edge.
 const CAM_KEYS: CamKey[] = [
-  { frame: 82, cx: 960, cy: 507, zoom: 1.0, rotX: 0, rotY: 0, rotZ: 0, persp: 1200 },
-  { frame: 114, cx: 960, cy: 507, zoom: 1.0, rotX: 0, rotY: 0, rotZ: 0, persp: 1200 },
+  { frame: 82, cx: 960, cy: 507, zoom: 1.07, rotX: 0, rotY: 0, rotZ: 0, persp: 1200 }, // 1080/1.07 < 1015 — края страницы за кадром
+  { frame: 114, cx: 960, cy: 507, zoom: 1.07, rotX: 0, rotY: 0, rotZ: 0, persp: 1200 },
   { frame: 130, cx: MCX - 30, cy: MCY, zoom: 1.85, rotX: 8, rotY: 34, rotZ: 2, persp: 1200 },
   { frame: 220, cx: MCX - 30, cy: MCY, zoom: 1.84, rotX: 8, rotY: 34, rotZ: 2, persp: 1200 },
 ];
@@ -78,8 +79,8 @@ export const SceneOpen: React.FC<SceneOpenProps> = (props) => {
     wordmark: WORDMARK, wordmarkSize, kicker: KICKER, kickerSize, noteLine1, noteLine2, noteSize,
     ink: INK, amber: AMBER, muted: INK2, paper,
   } = { ...sceneDefaults(theme, 'morning', SCENE_OPEN_DEFAULTS), ...props };
-  const frame = useCurrentFrame();
-  const duration = AIFL_SHOTS.morning.duration; // 220
+  const frame = useSceneFrame();
+  const duration = 220; // внутренняя длина сцены (кадры карточки), реальная задаётся TimeMap
 
   // --- crosshair draw-on (SVG pathLength = 100) ---
   const vDraw = interpolate(frame, [0, 9], [100, 0], {

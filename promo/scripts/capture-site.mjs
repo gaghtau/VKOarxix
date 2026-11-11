@@ -115,6 +115,7 @@ const rel = (b, top) => ({ x: Math.round(b.x), y: Math.round(b.y - top), w: Math
   // ФИО руководителя в ролике не нужно: прячем строку «Руководитель» карточки (подпись и значение)
   await p.evaluate(() => document.querySelectorAll('.bcard .kv > div').forEach((d) => { if (/^(Руководитель|Басшы|Head)$/.test(d.textContent.trim())) { d.style.display = 'none'; d.nextElementSibling.style.display = 'none'; } }));
   await new Promise((r) => setTimeout(r, 3500));
+  await p.evaluate(() => { const s = document.querySelector('.rt-sum'); if (s) s.style.visibility = 'hidden'; });
   const mapB = await box(p, '#map');
   const top = mapB.y - 140, pageH = Math.round(mapB.h + 200);
   await shot(p, 'branches-route.png', { x: 0, y: top, width: 1920, height: pageH });
@@ -133,7 +134,7 @@ const rel = (b, top) => ({ x: Math.round(b.x), y: Math.round(b.y - top), w: Math
   }, top);
   // плашка итога лежит ниже видимой части прокручиваемой карточки: раскрываем карточку на всю высоту
   // (после снимков страницы), снимаем плашку и только её
-  await p.evaluate(() => { const c = document.querySelector('.bcard'); c.style.maxHeight = 'none'; c.style.overflow = 'visible'; });
+  await p.evaluate(() => { const c = document.querySelector('.bcard'); c.style.maxHeight = 'none'; c.style.overflow = 'visible'; const s = document.querySelector('.rt-sum'); if (s) s.style.visibility = 'visible'; });
   await new Promise((r) => setTimeout(r, 300));
   const sum = await box(p, '.rt-sum');
   if (sum) await shot(p, 'route-sum.png', { x: sum.x, y: sum.y, width: sum.w, height: sum.h });

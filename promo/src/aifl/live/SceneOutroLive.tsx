@@ -1,6 +1,7 @@
+import { useSceneFrame } from '../timemap';
 import { DISPLAY, MONO_FONT } from '../fonts';
 import { useVisualTheme, themePaint, themeAsset, sceneDefaults } from '../../themes/visual-theme';
-import { AbsoluteFill, Img, interpolate, useCurrentFrame, Easing } from 'remotion';
+import { AbsoluteFill, Img, interpolate, Easing } from 'remotion';
 import { PageCam, CamKey } from './PageCam';
 import { AIFL_SHOTS } from '../Main';
 import layout from '../live-layout.json';
@@ -88,8 +89,8 @@ export const SceneOutroLive: React.FC<SceneOutroProps> = (props) => {
   const MONO = (paperStyle ? MONO_FONT : theme.font);
   const { wordmark, wordmarkSize, tagline, taglineSize, ink, amber, muted } = { ...sceneDefaults(theme, 'outro', SCENE_OUTRO_DEFAULTS), ...props };
   const LETTERS = wordmark.split('');
-  const frame = useCurrentFrame();
-  const duration = AIFL_SHOTS.outro.duration; // 115
+  const frame = useSceneFrame();
+  const duration = 145; // внутренняя длина сцены
 
   const blur = interpolate(frame, [0, 24], [0, 14], {
     extrapolateLeft: 'clamp',
